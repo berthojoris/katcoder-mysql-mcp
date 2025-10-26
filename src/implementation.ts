@@ -121,6 +121,11 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
   // Tool Implementations
   protected async handleList(args: any): Promise<any> {
     try {
+      const databaseName = this.getDatabaseConfig().database;
+      if (!databaseName) {
+        throw new Error('Database name is not configured');
+      }
+
       if (args.table) {
         this.validateTableName(args.table);
         
@@ -138,7 +143,7 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
           ORDER BY ORDINAL_POSITION
         `;
         
-        const columns = await this.dbManager.query(query, [this.getDatabaseConfig().database, args.table]);
+        const columns = await this.dbManager.query(query, [databaseName, args.table]);
         
         return {
           success: true,
@@ -161,7 +166,7 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
           ORDER BY TABLE_NAME
         `;
         
-        const tables = await this.dbManager.query(query, [this.getDatabaseConfig().database]);
+        const tables = await this.dbManager.query(query, [databaseName]);
         
         return {
           success: true,
@@ -496,20 +501,25 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
           };
 
         case 'stats':
+          const databaseName = this.getDatabaseConfig().database;
+          if (!databaseName) {
+            throw new Error('Database name is not configured');
+          }
+
           const stats = await this.dbManager.query(`
             SELECT 
               COUNT(*) as total_tables,
               SUM(TABLE_ROWS) as total_rows
             FROM INFORMATION_SCHEMA.TABLES 
             WHERE TABLE_SCHEMA = ?
-          `, [this.getDatabaseConfig().database]);
+          `, [databaseName]);
           
           const poolStatus = this.dbManager.getPoolStatus();
           
           return {
             success: true,
             action: 'stats',
-            database: this.getDatabaseConfig().database,
+            database: databaseName,
             tables: stats[0]?.total_tables || 0,
             rows: stats[0]?.total_rows || 0,
             pool: poolStatus,

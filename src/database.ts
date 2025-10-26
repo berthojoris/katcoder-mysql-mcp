@@ -22,9 +22,11 @@ const logger = winston.createLogger({
 export class DatabaseManager {
   private pool: mysql.Pool;
   private config: DatabaseConfig;
+  private connectionLimit: number;
 
   constructor(config: DatabaseConfig) {
     this.config = config;
+    this.connectionLimit = config.connectionLimit || 10;
     this.pool = mysql.createPool({
       host: config.host,
       port: config.port,
@@ -167,7 +169,7 @@ export class DatabaseManager {
 
   getPoolStatus(): { connections: number; busyConnections: number } {
     return {
-      connections: this.pool.config.connectionLimit || 0,
+      connections: this.connectionLimit,
       busyConnections: 0, // Simplified for now - MySQL2 doesn't expose this directly
     };
   }
