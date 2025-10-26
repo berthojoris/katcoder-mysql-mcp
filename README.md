@@ -711,6 +711,14 @@ For issues and questions:
 
 ## Changelog
 
+### v1.0.1 (Latest)
+- **New Feature**: Added Bulk Insert Tool for efficient multi-record insertion
+  - Implemented `bulk_insert` tool for batch data imports
+  - Supports inserting multiple records in a single database operation
+  - Includes comprehensive validation and error handling
+  - Can be used within transactions for atomic operations
+  - Added detailed documentation with examples and usage scenarios
+
 ### v1.0.0
 - Initial release
 - All database operations implemented
