@@ -354,6 +354,256 @@ export class MySQLMCPServer {
         },
       },
       {
+        name: 'add_column',
+        description: 'Add a new column to an existing table',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            table: {
+              type: 'string',
+              description: 'Table name to add column to',
+            },
+            column: {
+              type: 'object',
+              properties: {
+                name: {
+                  type: 'string',
+                  description: 'New column name',
+                },
+                type: {
+                  type: 'string',
+                  description: 'Column data type (e.g., VARCHAR(255), INT, DATETIME)',
+                },
+                nullable: {
+                  type: 'boolean',
+                  description: 'Whether the column can contain NULL values',
+                },
+                default: {
+                  type: ['string', 'number', 'null'],
+                  description: 'Default value for the column',
+                },
+                autoIncrement: {
+                  type: 'boolean',
+                  description: 'Whether the column should auto-increment',
+                },
+                comment: {
+                  type: 'string',
+                  description: 'Column comment',
+                },
+              },
+              required: ['name', 'type'],
+              description: 'Column definition',
+            },
+            position: {
+              type: 'object',
+              properties: {
+                after: {
+                  type: 'string',
+                  description: 'Place column after this existing column',
+                },
+                first: {
+                  type: 'boolean',
+                  description: 'Place column as the first column',
+                },
+              },
+              description: 'Column position in the table',
+            },
+          },
+          required: ['table', 'column'],
+        },
+      },
+      {
+        name: 'drop_column',
+        description: 'Remove a column from a table',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            table: {
+              type: 'string',
+              description: 'Table name to remove column from',
+            },
+            column: {
+              type: 'string',
+              description: 'Column name to drop',
+            },
+          },
+          required: ['table', 'column'],
+        },
+      },
+      {
+        name: 'modify_column',
+        description: 'Modify an existing column definition',
+        inputSchema: {
+  protected async handleBulkInsert(args: any): Promise<any> {
+    throw new Error('handleBulkInsert not implemented');
+  }
+
+  protected async handleAddColumn(args: any): Promise<any> {
+    throw new Error('handleAddColumn not implemented');
+  }
+
+  protected async handleDropColumn(args: any): Promise<any> {
+    throw new Error('handleDropColumn not implemented');
+  }
+
+  protected async handleModifyColumn(args: any): Promise<any> {
+    throw new Error('handleModifyColumn not implemented');
+  }
+
+  protected async handleRenameColumn(args: any): Promise<any> {
+    throw new Error('handleRenameColumn not implemented');
+  }
+
+  protected async handleRenameTable(args: any): Promise<any> {
+    throw new Error('handleRenameTable not implemented');
+  }
+
+  protected async handleAddIndex(args: any): Promise<any> {
+    throw new Error('handleAddIndex not implemented');
+  }
+
+  protected async handleDropIndex(args: any): Promise<any> {
+    throw new Error('handleDropIndex not implemented');
+  }
+
+  protected async handleUtility(args: any): Promise<any> {
+    throw new Error('handleUtility not implemented');
+  }
+          type: 'object',
+          properties: {
+            table: {
+              type: 'string',
+              description: 'Table name containing the column',
+            },
+            column: {
+              type: 'string',
+              description: 'Column name to modify',
+            },
+            newDefinition: {
+              type: 'object',
+              properties: {
+                type: {
+                  type: 'string',
+                  description: 'New column data type',
+                },
+                nullable: {
+                  type: 'boolean',
+                  description: 'Whether the column can contain NULL values',
+                },
+                default: {
+                  type: ['string', 'number', 'null'],
+                  description: 'New default value',
+                },
+                comment: {
+                  type: 'string',
+                  description: 'Column comment',
+                },
+              },
+              required: ['type'],
+              description: 'New column definition',
+            },
+          },
+          required: ['table', 'column', 'newDefinition'],
+        },
+      },
+      {
+        name: 'rename_column',
+        description: 'Rename an existing column',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            table: {
+              type: 'string',
+              description: 'Table name containing the column',
+            },
+            oldName: {
+              type: 'string',
+              description: 'Current column name',
+            },
+            newName: {
+              type: 'string',
+              description: 'New column name',
+            },
+            newDefinition: {
+              type: 'string',
+              description: 'Column definition for the renamed column (optional, defaults to old definition)',
+            },
+          },
+          required: ['table', 'oldName', 'newName'],
+        },
+      },
+      {
+        name: 'rename_table',
+        description: 'Rename a table',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            oldName: {
+              type: 'string',
+              description: 'Current table name',
+            },
+            newName: {
+              type: 'string',
+              description: 'New table name',
+            },
+          },
+          required: ['oldName', 'newName'],
+        },
+      },
+      {
+        name: 'add_index',
+        description: 'Add an index to a table',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            table: {
+              type: 'string',
+              description: 'Table name to add index to',
+            },
+            name: {
+              type: 'string',
+              description: 'Index name',
+            },
+            columns: {
+              type: 'array',
+              items: {
+                type: 'string',
+              },
+              description: 'Array of column names to include in the index',
+            },
+            type: {
+              type: 'string',
+              enum: ['BTREE', 'HASH', 'FULLTEXT', 'SPATIAL'],
+              description: 'Index type',
+            },
+            unique: {
+              type: 'boolean',
+              description: 'Whether the index should be unique',
+            },
+          },
+          required: ['table', 'name', 'columns'],
+        },
+      },
+      {
+        name: 'drop_index',
+        description: 'Remove an index from a table',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            table: {
+              type: 'string',
+              description: 'Table name containing the index',
+            },
+            name: {
+              type: 'string',
+              description: 'Index name to drop',
+            },
+          },
+          required: ['table', 'name'],
+        },
+      },
+      },
+      {
         name: 'utility',
         description: 'Utility functions for database management',
         inputSchema: {

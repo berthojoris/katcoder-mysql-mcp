@@ -15,6 +15,13 @@ A secure and feature-rich MySQL Model Context Protocol (MCP) server that enables
 - **List**: Browse tables and view table structures
 - **Read**: Query data with filtering, pagination, and sorting
 - **Create**: Insert new records with validation
+- **Add Column**: Add new columns to existing tables with full type and constraint support
+- **Drop Column**: Remove columns from tables with safety checks
+- **Modify Column**: Change column definitions (type, constraints, defaults)
+- **Rename Column**: Rename existing columns while preserving data
+- **Rename Table**: Rename tables with safety validation
+- **Add Index**: Create indexes (BTREE, HASH, FULLTEXT, SPATIAL) with unique constraints
+- **Drop Index**: Remove indexes from tables
 - **Bulk Insert**: Efficiently insert multiple records in a single operation
 - **Update**: Modify existing records safely
 - **Delete**: Remove records with mandatory WHERE clauses
@@ -457,6 +464,300 @@ Execute Data Definition Language statements.
   }
 }
 
+### 8. Add Column Tool
+Add new columns to existing tables with comprehensive type and constraint support.
+
+**Parameters:**
+- `table` (required): Target table name
+- `column` (required): Object with column definition
+  - `name` (required): New column name
+  - `type` (required): Column data type (e.g., VARCHAR(255), INT, DATETIME)
+  - `nullable` (optional): Whether column can contain NULL values
+  - `default` (optional): Default value for the column
+  - `autoIncrement` (optional): Whether column should auto-increment
+  - `comment` (optional): Column comment
+- `position` (optional): Object specifying column position
+  - `after` (optional): Place column after this existing column
+  - `first` (optional): Place column as the first column
+
+**Examples:**
+```json
+{
+  "name": "add_column",
+  "arguments": {
+    "table": "users",
+    "column": {
+      "name": "email",
+      "type": "VARCHAR(255)",
+      "nullable": false,
+      "default": "no-email@example.com"
+    },
+    "position": {
+      "after": "name"
+    }
+  }
+}
+```
+
+```json
+{
+  "name": "add_column",
+  "arguments": {
+    "table": "products",
+    "column": {
+      "name": "is_active",
+      "type": "BOOLEAN",
+      "default": true,
+      "comment": "Product availability status"
+    }
+  }
+}
+```
+
+### 9. Drop Column Tool
+Remove columns from tables with safety validation.
+
+**Parameters:**
+- `table` (required): Table name to remove column from
+- `column` (required): Column name to drop
+
+**Examples:**
+```json
+{
+  "name": "drop_column",
+  "arguments": {
+    "table": "users",
+    "column": "old_field"
+  }
+}
+```
+
+### 10. Modify Column Tool
+Change existing column definitions including type, constraints, and defaults.
+
+**Parameters:**
+- `table` (required): Table name containing the column
+- `column` (required): Column name to modify
+- `newDefinition` (required): Object with new column definition
+  - `type` (required): New column data type
+  - `nullable` (optional): Whether column can contain NULL values
+  - `default` (optional): New default value
+  - `comment` (optional): Column comment
+
+**Examples:**
+```json
+{
+  "name": "modify_column",
+  "arguments": {
+    "table": "users",
+    "column": "age",
+    "newDefinition": {
+      "type": "INT",
+      "nullable": true,
+      "default": null
+    }
+  }
+}
+```
+
+### 11. Rename Column Tool
+Rename existing columns while preserving data.
+
+**Parameters:**
+- `table` (required): Table name containing the column
+- `oldName` (required): Current column name
+- `newName` (required): New column name
+- `newDefinition` (optional): Column definition for the renamed column
+
+**Examples:**
+```json
+{
+  "name": "rename_column",
+  "arguments": {
+    "table": "users",
+    "oldName": "user_name",
+    "newName": "username"
+  }
+}
+```
+
+### 12. Rename Table Tool
+Rename tables with safety validation.
+
+**Parameters:**
+- `oldName` (required): Current table name
+- `newName` (required): New table name
+
+**Examples:**
+```json
+{
+  "name": "rename_table",
+  "arguments": {
+    "oldName": "user_profiles",
+    "newName": "user_settings"
+  }
+}
+```
+
+### 13. Add Index Tool
+Create indexes on tables for improved query performance.
+
+**Parameters:**
+- `table` (required): Table name to add index to
+- `name` (required): Index name
+- `columns` (required): Array of column names to include in the index
+- `type` (optional): Index type (BTREE, HASH, FULLTEXT, SPATIAL)
+- `unique` (optional): Whether the index should be unique
+
+**Examples:**
+```json
+{
+  "name": "add_index",
+  "arguments": {
+    "table": "users",
+    "name": "idx_email",
+    "columns": ["email"],
+    "unique": true
+  }
+}
+```
+
+```json
+{
+  "name": "add_index",
+  "arguments": {
+    "table": "products",
+    "name": "idx_category_price",
+    "columns": ["category_id", "price"],
+    "type": "BTREE"
+  }
+}
+```
+
+### 14. Drop Index Tool
+Remove indexes from tables.
+
+**Parameters:**
+- `table` (required): Table name containing the index
+- `name` (required): Index name to drop
+
+**Examples:**
+```json
+{
+  "name": "drop_index",
+  "arguments": {
+    "table": "users",
+    "name": "idx_temp"
+  }
+}
+```
+
+### 15. Transaction Tool
+Execute multiple operations atomically.
+
+**Parameters:**
+- `operations` (required): Array of operations to execute in transaction
+
+**Basic Examples:**
+```json
+{
+  "name": "transaction",
+  "arguments": [
+    {
+      "type": "create",
+      "table": "orders",
+      "data": {"user_id": 123, "total": 99.99}
+    },
+    {
+      "type": "update",
+      "table": "users",
+      "data": {"last_order_date": "2024-01-01"},
+      "where": {"id": 123}
+    }
+  ]
+}
+```
+
+**Advanced Transaction Examples with Schema Changes:**
+```json
+{
+  "name": "transaction",
+  "arguments": {
+    "operations": [
+      {
+        "type": "add_column",
+        "table": "users",
+        "column": {
+          "name": "phone",
+          "type": "VARCHAR(20)",
+          "nullable": true
+        }
+      },
+      {
+        "type": "add_index",
+        "table": "users",
+        "name": "idx_phone",
+        "columns": ["phone"],
+        "unique": true
+      },
+      {
+        "type": "update",
+        "table": "users",
+        "data": {"phone": "+1234567890"},
+        "where": {"id": 1}
+      }
+    ]
+  }
+}
+```
+
+**Response Format:**
+```json
+{
+  "success": true,
+  "operations": 3,
+  "results": [
+    {
+      "description": "Add column 'phone' to table 'users'",
+### v1.1.0 (Latest)
+- **New Feature**: Added Comprehensive Schema Modification Tools
+  - Implemented `add_column` tool for adding new columns with full type and constraint support
+  - Implemented `drop_column` tool for safely removing columns from tables
+  - Implemented `modify_column` tool for changing column definitions
+  - Implemented `rename_column` tool for renaming existing columns
+  - Implemented `rename_table` tool for renaming tables
+  - Implemented `add_index` tool for creating various types of indexes
+  - Implemented `drop_index` tool for removing indexes from tables
+  - Added comprehensive schema validation and security measures
+  - Enhanced transaction support for schema operations with rollback mechanisms
+  - Added detailed documentation with examples and usage scenarios
+
+### v1.0.1
+- **New Feature**: Added Bulk Insert Tool for efficient multi-record insertion
+  - Implemented `bulk_insert` tool for batch data imports
+  - Supports inserting multiple records in a single database operation
+  - Includes comprehensive validation and error handling
+  - Can be used within transactions for atomic operations
+  - Added detailed documentation with examples and usage scenarios
+
+### v1.0.0
+- Initial release
+- All database operations implemented
+- Comprehensive security features
+- Full documentation
+      "affectedRows": 0
+    },
+    {
+      "description": "Create unique index 'idx_phone' on table 'users'",
+      "affectedRows": 0
+    },
+    {
+      "description": "Update user record with phone number",
+      "affectedRows": 1
+    }
+  ]
+}
+```
 {
   "name": "ddl",
   "arguments": {

@@ -129,6 +129,39 @@ export class DatabaseManager {
       connection.release();
       logger.debug('Transaction connection released');
     }
+  async schemaTransaction(operations: Array<{sql: string, params?: any[], description: string}>): Promise<any[]> {
+    const connection = await this.pool.getConnection();
+    
+    try {
+      await connection.beginTransaction();
+      logger.info(`Schema transaction started with ${operations.length} operations`);
+
+      const results = [];
+      for (const {sql, params, description} of operations) {
+        logger.info(`Executing schema operation: ${description}`);
+        logger.debug(`Schema SQL: ${sql}`, { params });
+        
+        const [result] = await connection.execute(sql, params);
+        results.push({
+          description,
+          result,
+          affectedRows: (result as any).affectedRows || 0,
+        });
+      }
+
+      await connection.commit();
+      logger.info('Schema transaction committed successfully');
+      return results;
+
+    } catch (error) {
+      await connection.rollback();
+      logger.error('Schema transaction rolled back due to error:', error);
+      throw this.formatDatabaseError(error);
+    } finally {
+      connection.release();
+      logger.debug('Schema transaction connection released');
+    }
+  }
   }
 
   async getConnection(): Promise<mysql.PoolConnection> {

@@ -53,6 +53,92 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
     if (sanitized !== column) {
       throw new Error('Invalid column name: contains illegal characters');
     }
+  // Schema Modification Security and Validation
+  private validateSchemaChangeSafety(operation: string, tableName: string, columnName?: string): void {
+    // Prevent schema modifications on system tables
+    const systemTables = ['mysql', 'information_schema', 'performance_schema', 'sys'];
+    if (systemTables.includes(tableName.toLowerCase())) {
+      throw new Error(`Schema modifications are not allowed on system table '${tableName}'`);
+    }
+
+    // Additional safety checks based on operation type
+    switch (operation) {
+      case 'dropColumn':
+        if (!columnName) {
+          throw new Error('Column name is required for dropColumn operation');
+        }
+        // Warn about potential data loss but allow it (user should be aware)
+        break;
+      case 'dropTable':
+        // This is a destructive operation, ensure user is aware
+        break;
+      case 'modifyColumn':
+        if (!columnName) {
+          throw new Error('Column name is required for modifyColumn operation');
+        }
+        break;
+    }
+  }
+
+  private validateColumnType(dataType: string): void {
+    const allowedTypes = [
+      'INT', 'INTEGER', 'BIGINT', 'SMALLINT', 'TINYINT', 'MEDIUMINT',
+      'DECIMAL', 'NUMERIC', 'FLOAT', 'DOUBLE', 'REAL',
+      'CHAR', 'VARCHAR', 'TEXT', 'TINYTEXT', 'MEDIUMTEXT', 'LONGTEXT',
+      'DATE', 'TIME', 'DATETIME', 'TIMESTAMP', 'YEAR',
+      'BOOLEAN', 'BOOL',
+      'BINARY', 'VARBINARY', 'BLOB', 'TINYBLOB', 'MEDIUMBLOB', 'LONGBLOB',
+      'ENUM', 'SET', 'JSON'
+    ];
+
+    const typePattern = /^([A-Z]+)(\(\d+\))?(\s+(UNSIGNED|SIGNED|ZEROFILL))?(\s+(NOT\s+)?NULL)?(\s+DEFAULT\s+[^,]+)?(\s+(AUTO_INCREMENT|ON\s+UPDATE\s+CURRENT_TIMESTAMP))?(\s+COMMENT\s+'[^']*')?$/i;
+    
+    if (!typePattern.test(dataType.toUpperCase())) {
+      throw new Error(`Invalid column type: '${dataType}'. Use standard MySQL data types.`);
+    }
+
+    const baseType = dataType.split('(')[0].split(' ')[0].toUpperCase();
+    if (!allowedTypes.includes(baseType)) {
+      throw new Error(`Unsupported column type: '${baseType}'. Allowed types: ${allowedTypes.join(', ')}`);
+    }
+  }
+
+  private validateIndexType(indexType: string): void {
+    const allowedTypes = ['BTREE', 'HASH', 'FULLTEXT', 'SPATIAL'];
+    if (!allowedTypes.includes(indexType.toUpperCase())) {
+      throw new Error(`Invalid index type: '${indexType}'. Allowed types: ${allowedTypes.join(', ')}`);
+    }
+  }
+
+  private buildColumnDefinition(column: any): string {
+    let definition = `\`${this.sanitizeIdentifier(column.name)}\` ${column.type}`;
+
+    if (column.nullable === false) {
+      definition += ' NOT NULL';
+    } else if (column.nullable === true) {
+      definition += ' NULL';
+    }
+
+    if (column.default !== undefined) {
+      if (column.default === null) {
+        definition += ' DEFAULT NULL';
+      } else if (typeof column.default === 'string') {
+        definition += ` DEFAULT '${column.default.replace(/'/g, "''")}'`;
+      } else {
+        definition += ` DEFAULT ${column.default}`;
+      }
+    }
+
+    if (column.autoIncrement) {
+      definition += ' AUTO_INCREMENT';
+    }
+
+    if (column.comment) {
+      definition += ` COMMENT '${column.comment.replace(/'/g, "''")}'`;
+    }
+
+    return definition;
+  }
   }
 
   private validateWhereConditions(where: any): void {
@@ -301,6 +387,306 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
         changedRows: result.changedRows,
       };
     } catch (error) {
+  protected async handleAddColumn(args: any): Promise<any> {
+    try {
+      this.validateTableName(args.table);
+      this.validateSchemaChangeSafety('addColumn', args.table, args.column?.name);
+
+      if (!args.column || typeof args.column !== 'object') {
+      case 'bulk_insert':
+        return this.handleBulkInsert(args);
+      case 'add_column':
+        return this.handleAddColumn(args);
+      case 'drop_column':
+        return this.handleDropColumn(args);
+      case 'modify_column':
+        return this.handleModifyColumn(args);
+      case 'rename_column':
+        return this.handleRenameColumn(args);
+      case 'rename_table':
+        return this.handleRenameTable(args);
+      case 'add_index':
+        return this.handleAddIndex(args);
+      case 'drop_index':
+        return this.handleDropIndex(args);
+      case 'utility':
+        throw new Error('Column definition is required');
+      }
+
+      if (!args.column.name || !args.column.type) {
+        throw new Error('Column name and type are required');
+      }
+
+      this.validateColumnName(args.column.name);
+      this.validateColumnType(args.column.type);
+
+      const columnDefinition = this.buildColumnDefinition(args.column);
+      let sql = `ALTER TABLE \`${args.table}\` ADD COLUMN ${columnDefinition}`;
+
+      if (args.position) {
+        if (args.position.after) {
+          sql += ` AFTER \`${this.sanitizeIdentifier(args.position.after)}\``;
+        } else if (args.position.first) {
+          sql += ' FIRST';
+        }
+      }
+
+      const result = await this.dbManager.query(sql);
+      
+      return {
+        success: true,
+        table: args.table,
+        column: args.column.name,
+        operation: 'addColumn',
+        message: `Successfully added column '${args.column.name}' to table '${args.table}'`,
+        affectedRows: result.affectedRows || 0,
+      };
+    } catch (error) {
+      logger.error('Add column operation failed:', error);
+      throw error;
+    }
+  }
+
+  protected async handleDropColumn(args: any): Promise<any> {
+    try {
+      this.validateTableName(args.table);
+      this.validateColumnName(args.column);
+      this.validateSchemaChangeSafety('dropColumn', args.table, args.column);
+
+      // Check if column exists
+      const existingColumns = await this.dbManager.query(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?
+      `, [this.getDatabaseConfig().database, args.table, args.column]);
+
+      if (existingColumns.length === 0) {
+        throw new Error(`Column '${args.column}' does not exist in table '${args.table}'`);
+      }
+
+      const sql = `ALTER TABLE \`${args.table}\` DROP COLUMN \`${args.column}\``;
+      const result = await this.dbManager.query(sql);
+      
+      return {
+        success: true,
+        table: args.table,
+        column: args.column,
+        operation: 'dropColumn',
+        message: `Successfully dropped column '${args.column}' from table '${args.table}'`,
+        affectedRows: result.affectedRows || 0,
+      };
+    } catch (error) {
+      logger.error('Drop column operation failed:', error);
+      throw error;
+    }
+  }
+
+  protected async handleModifyColumn(args: any): Promise<any> {
+    try {
+      this.validateTableName(args.table);
+      this.validateColumnName(args.column);
+      this.validateSchemaChangeSafety('modifyColumn', args.table, args.column);
+
+      if (!args.newDefinition || typeof args.newDefinition !== 'object') {
+        throw new Error('New column definition is required');
+      }
+
+      this.validateColumnType(args.newDefinition.type);
+
+      const columnDefinition = this.buildColumnDefinition({
+        name: args.column,
+        ...args.newDefinition
+      });
+
+      const sql = `ALTER TABLE \`${args.table}\` MODIFY COLUMN ${columnDefinition}`;
+      const result = await this.dbManager.query(sql);
+      
+      return {
+        success: true,
+        table: args.table,
+        column: args.column,
+        operation: 'modifyColumn',
+        message: `Successfully modified column '${args.column}' in table '${args.table}'`,
+        affectedRows: result.affectedRows || 0,
+      };
+    } catch (error) {
+      logger.error('Modify column operation failed:', error);
+      throw error;
+    }
+  }
+
+  protected async handleRenameColumn(args: any): Promise<any> {
+    try {
+      this.validateTableName(args.table);
+      this.validateColumnName(args.oldName);
+      this.validateColumnName(args.newName);
+      this.validateSchemaChangeSafety('renameColumn', args.table, args.oldName);
+
+      // Check if old column exists
+      const existingColumns = await this.dbManager.query(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?
+      `, [this.getDatabaseConfig().database, args.table, args.oldName]);
+
+      if (existingColumns.length === 0) {
+        throw new Error(`Column '${args.oldName}' does not exist in table '${args.table}'`);
+      }
+
+      // Check if new column name already exists
+      const newColumnExists = await this.dbManager.query(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?
+      `, [this.getDatabaseConfig().database, args.table, args.newName]);
+
+      if (newColumnExists.length > 0) {
+        throw new Error(`Column '${args.newName}' already exists in table '${args.table}'`);
+      }
+
+      const sql = `ALTER TABLE \`${args.table}\` CHANGE COLUMN \`${args.oldName}\` \`${args.newName}\` ${args.newDefinition || args.oldName}`;
+      const result = await this.dbManager.query(sql);
+      
+      return {
+        success: true,
+        table: args.table,
+        oldName: args.oldName,
+        newName: args.newName,
+        operation: 'renameColumn',
+        message: `Successfully renamed column '${args.oldName}' to '${args.newName}' in table '${args.table}'`,
+        affectedRows: result.affectedRows || 0,
+      };
+    } catch (error) {
+      logger.error('Rename column operation failed:', error);
+      throw error;
+    }
+  }
+
+  protected async handleRenameTable(args: any): Promise<any> {
+    try {
+      this.validateTableName(args.oldName);
+      this.validateTableName(args.newName);
+      this.validateSchemaChangeSafety('renameTable', args.oldName);
+
+      // Check if old table exists
+      const existingTables = await this.dbManager.query(`
+        SELECT TABLE_NAME 
+        FROM INFORMATION_SCHEMA.TABLES 
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
+      `, [this.getDatabaseConfig().database, args.oldName]);
+
+      if (existingTables.length === 0) {
+        throw new Error(`Table '${args.oldName}' does not exist`);
+      }
+
+      // Check if new table name already exists
+      const newTableExists = await this.dbManager.query(`
+        SELECT TABLE_NAME 
+        FROM INFORMATION_SCHEMA.TABLES 
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
+      `, [this.getDatabaseConfig().database, args.newName]);
+
+      if (newTableExists.length > 0) {
+        throw new Error(`Table '${args.newName}' already exists`);
+      }
+
+      const sql = `RENAME TABLE \`${args.oldName}\` TO \`${args.newName}\``;
+      const result = await this.dbManager.query(sql);
+      
+      return {
+        success: true,
+        oldName: args.oldName,
+        newName: args.newName,
+        operation: 'renameTable',
+        message: `Successfully renamed table '${args.oldName}' to '${args.newName}'`,
+        affectedRows: result.affectedRows || 0,
+      };
+    } catch (error) {
+      logger.error('Rename table operation failed:', error);
+      throw error;
+    }
+  }
+
+  protected async handleAddIndex(args: any): Promise<any> {
+    try {
+      this.validateTableName(args.table);
+      this.validateSchemaChangeSafety('addIndex', args.table);
+
+      if (!args.name || !args.columns || !Array.isArray(args.columns) || args.columns.length === 0) {
+        throw new Error('Index name and columns are required');
+      }
+
+      // Validate all column names
+      args.columns.forEach((col: string) => this.validateColumnName(col));
+
+      if (args.type) {
+        this.validateIndexType(args.type);
+      }
+
+      let indexType = '';
+      if (args.type) {
+        indexType = `${args.type} INDEX`;
+      } else if (args.unique) {
+        indexType = 'UNIQUE INDEX';
+      } else {
+        indexType = 'INDEX';
+      }
+
+      const columnList = args.columns.map((col: string) => `\`${this.sanitizeIdentifier(col)}\``).join(', ');
+      const sql = `CREATE ${indexType} \`${this.sanitizeIdentifier(args.name)}\` ON \`${args.table}\` (${columnList})`;
+      
+      const result = await this.dbManager.query(sql);
+      
+      return {
+        success: true,
+        table: args.table,
+        index: args.name,
+        operation: 'addIndex',
+        message: `Successfully added index '${args.name}' to table '${args.table}'`,
+        affectedRows: result.affectedRows || 0,
+      };
+    } catch (error) {
+      logger.error('Add index operation failed:', error);
+      throw error;
+    }
+  }
+
+  protected async handleDropIndex(args: any): Promise<any> {
+    try {
+      this.validateTableName(args.table);
+      this.validateSchemaChangeSafety('dropIndex', args.table);
+
+      if (!args.name) {
+        throw new Error('Index name is required');
+      }
+
+      // Check if index exists
+      const existingIndexes = await this.dbManager.query(`
+        SELECT INDEX_NAME 
+        FROM INFORMATION_SCHEMA.STATISTICS 
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND INDEX_NAME = ?
+      `, [this.getDatabaseConfig().database, args.table, args.name]);
+
+      if (existingIndexes.length === 0) {
+        throw new Error(`Index '${args.name}' does not exist on table '${args.table}'`);
+      }
+
+      const sql = `DROP INDEX \`${this.sanitizeIdentifier(args.name)}\` ON \`${args.table}\``;
+      const result = await this.dbManager.query(sql);
+      
+      return {
+        success: true,
+        table: args.table,
+        index: args.name,
+        operation: 'dropIndex',
+        message: `Successfully dropped index '${args.name}' from table '${args.table}'`,
+        affectedRows: result.affectedRows || 0,
+      };
+    } catch (error) {
+      logger.error('Drop index operation failed:', error);
+      throw error;
+    }
+  }
       logger.error('Update operation failed:', error);
       throw error;
     }
