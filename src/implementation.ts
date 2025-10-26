@@ -160,7 +160,7 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
       } else {
         // List all tables
         const query = `
-          SELECT TABLE_NAME as name, TABLE_ROWS as rows, TABLE_COMMENT as comment
+          SELECT TABLE_NAME as name, TABLE_ROWS as \`rows\`, TABLE_COMMENT as comment
           FROM INFORMATION_SCHEMA.TABLES 
           WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = 'BASE TABLE'
           ORDER BY TABLE_NAME
