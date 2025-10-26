@@ -1,0 +1,51 @@
+{
+  "name": "katcoder-mysql-mcp",
+  "version": "1.0.0",
+  "description": "MySQL Model Context Protocol (MCP) server for AI agents and database integration",
+  "main": "dist/index.js",
+  "bin": {
+    "katcoder-mysql-mcp": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/index.ts",
+    "start": "node dist/cli.js",
+    "clean": "rimraf dist",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "keywords": [
+    "mysql",
+    "mcp",
+    "model-context-protocol",
+    "database",
+    "ai",
+    "agent",
+    "sql"
+  ],
+  "author": "KatCoder",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.4.0",
+    "mysql2": "^3.6.5",
+    "zod": "^3.22.4",
+    "commander": "^11.1.0",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "ts-node": "^10.9.0",
+    "rimraf": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/katkoder/katcoder-mysql-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/katkoder/katcoder-mysql-mcp/issues"
+  },
+  "homepage": "https://github.com/katkoder/katcoder-mysql-mcp#readme"
+}

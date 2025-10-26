@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "katkoder_mysql": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "katcoder-mysql-mcp",
+        "mysql://root:@localhost:3306/test_database",
+        "list,read,create,update,delete,execute,ddl,transaction,utility"
+      ]
+    }
+  }
+}

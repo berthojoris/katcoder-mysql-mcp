@@ -1,0 +1,582 @@
+# KatCoder MySQL MCP Server
+
+A secure and feature-rich MySQL Model Context Protocol (MCP) server that enables AI agents and applications to interact with MySQL databases through a standardized interface.
+
+## Features
+
+### 🔒 Security First
+- **SQL Injection Prevention**: Comprehensive input validation and sanitization
+- **Identifier Validation**: Strict validation of table and column names
+- **Query Whitelisting**: Read-only operations by default, write operations require explicit permission
+- **Connection Pooling**: Secure connection management with timeout controls
+- **Error Handling**: Secure error messages that don't expose sensitive information
+
+### 🛠️ Database Operations
+- **List**: Browse tables and view table structures
+- **Read**: Query data with filtering, pagination, and sorting
+- **Create**: Insert new records with validation
+- **Update**: Modify existing records safely
+- **Delete**: Remove records with mandatory WHERE clauses
+- **Execute**: Run custom SQL queries with security restrictions
+- **DDL**: Execute Data Definition Language statements
+- **Transaction**: Execute multiple operations atomically
+- **Utility**: Database health checks and metadata operations
+
+### 🔧 Configuration Options
+- **Connection String**: Standard MySQL connection format
+- **Tool Selection**: Enable only the tools you need
+- **Connection Pooling**: Configurable pool settings
+- **Timeout Controls**: Connection and query timeouts
+
+## Installation
+
+### Global Installation
+```bash
+npm install -g katcoder-mysql-mcp
+```
+
+### Local Installation
+```bash
+npm install katcoder-mysql-mcp
+```
+
+### Development Installation
+```bash
+git clone https://github.com/katkoder/katcoder-mysql-mcp.git
+cd katcoder-mysql-mcp
+npm install
+npm run build
+```
+
+## Usage
+
+### Command Line Interface
+
+```bash
+# Basic usage with all tools enabled
+npx katcoder-mysql-mcp "mysql://user:password@localhost:3306/database_name"
+
+# With specific tools enabled
+npx katcoder-mysql-mcp "mysql://user:password@localhost:3306/database_name" "list,read,utility"
+
+# With verbose logging
+npx katcoder-mysql-mcp "mysql://user:password@localhost:3306/database_name" "all" --verbose
+```
+
+### Configuration for AI Agents
+
+#### Claude Desktop Configuration
+Add this configuration to your Claude Desktop configuration file:
+
+```json
+{
+  "mcpServers": {
+    "katkoder_mysql": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "katcoder-mysql-mcp",
+        "mysql://root:password@localhost:3306/production_db",
+        "list,read,create,update,delete,utility"
+      ]
+    }
+  }
+}
+```
+
+#### Cursor IDE Configuration
+For Cursor IDE, add to your settings:
+
+```json
+{
+  "mcp.servers": {
+    "katkoder_mysql": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "katcoder-mysql-mcp",
+        "mysql://user:password@localhost:3306/development_db",
+        "list,read,execute,utility"
+      ]
+    }
+  }
+}
+```
+
+### Connection String Format
+
+```
+mysql://[user[:password]@]host[:port]/database
+```
+
+#### Basic Examples:
+- `mysql://root@localhost:3306/mydb` - Local database without password
+- `mysql://user:password@localhost:3306/mydb` - Local database with password
+- `mysql://user:password@192.168.1.100:3306/mydb` - Remote database
+
+#### Advanced Examples:
+- `mysql://user:password@db.example.com:3306/production?ssl=true` - Remote database with SSL
+- `mysql://root:password@mysql-container:3306/docker_db` - Docker database
+- `mysql://user:password@localhost:3307/alternative_port` - Different port
+
+## Available Tools
+
+### 1. List Tool
+Browse database structure and table information.
+
+**Parameters:**
+- `table` (optional): Specific table name to get column information
+
+**Examples:**
+```json
+{
+  "name": "list",
+  "arguments": {}
+}
+
+{
+  "name": "list",
+  "arguments": {
+    "table": "users"
+  }
+}
+```
+
+**Practical Usage Scenarios:**
+- **Database Discovery**: When connecting to a new database, use the list tool without parameters to see all available tables
+- **Schema Exploration**: Use with a table name to understand the structure before writing queries
+- **Data Modeling**: Examine relationships between tables by checking foreign key constraints
+- **Migration Planning**: Understand existing schema before making changes
+
+### 2. Read Tool
+Query data from tables with filtering and pagination.
+
+**Parameters:**
+- `table` (required): Table name to query
+- `columns` (optional): Array of specific columns to select
+- `where` (optional): Object with filter conditions
+- `limit` (optional): Maximum number of rows (max: 10,000)
+- `offset` (optional): Number of rows to skip
+- `orderBy` (optional): Order by clause
+
+**Basic Examples:**
+```json
+{
+  "name": "read",
+  "arguments": {
+    "table": "users",
+    "columns": ["id", "name", "email"],
+    "where": {"status": "active"},
+    "limit": 10,
+    "orderBy": "created_at DESC"
+  }
+}
+
+{
+  "name": "read",
+  "arguments": {
+    "table": "products",
+    "where": {"category": "electronics", "price": {"$gt": 100}},
+    "limit": 50
+  }
+}
+```
+
+**Advanced Filtering Examples:**
+```json
+{
+  "name": "read",
+  "arguments": {
+    "table": "users",
+    "columns": ["id", "email", "created_at"],
+    "where": {"status": "active", "created_at": {"$gte": "2024-01-01"}},
+    "limit": 25,
+    "offset": 50,
+    "orderBy": "last_login DESC"
+  }
+}
+```
+
+### 3. Create Tool
+Insert new records into tables.
+
+**Parameters:**
+- `table` (required): Target table name
+- `data` (required): Object with column-value pairs
+
+**Examples:**
+```json
+{
+  "name": "create",
+  "arguments": {
+    "table": "users",
+    "data": {
+      "name": "John Doe",
+      "email": "john@example.com",
+      "status": "active"
+    }
+  }
+}
+```
+
+### 4. Update Tool
+Modify existing records safely.
+
+**Parameters:**
+- `table` (required): Target table name
+- `data` (required): Object with column-value pairs to update
+- `where` (required): Object with filter conditions
+
+**Examples:**
+```json
+{
+  "name": "update",
+  "arguments": {
+    "table": "users",
+    "data": {
+      "status": "inactive",
+      "updated_at": "2024-01-01 12:00:00"
+    },
+    "where": {"id": 123}
+  }
+}
+```
+
+### 5. Delete Tool
+Remove records with mandatory WHERE clauses.
+
+**Parameters:**
+- `table` (required): Target table name
+- `where` (required): Object with filter conditions
+
+**Examples:**
+```json
+{
+  "name": "delete",
+  "arguments": {
+    "table": "sessions",
+    "where": {"expired": true}
+  }
+}
+```
+
+### 6. Execute Tool
+Run custom SQL queries with security restrictions.
+
+**Parameters:**
+- `query` (required): SQL query string
+- `params` (optional): Array of query parameters
+- `allowWrite` (optional): Boolean to allow write operations
+
+**Basic Examples:**
+```json
+{
+  "name": "execute",
+  "arguments": {
+    "query": "SELECT COUNT(*) as total FROM users WHERE created_at > ?",
+    "params": ["2024-01-01"]
+  }
+}
+
+{
+  "name": "execute",
+  "arguments": {
+    "query": "UPDATE users SET last_login = NOW() WHERE id = ?",
+    "params": [123],
+    "allowWrite": true
+  }
+}
+```
+
+**Complex Query Examples:**
+```json
+{
+  "name": "execute",
+  "arguments": {
+    "query": "SELECT u.email, COUNT(o.id) as order_count FROM users u LEFT JOIN orders o ON u.id = o.user_id GROUP BY u.id HAVING order_count > 5"
+  }
+}
+
+{
+  "name": "execute",
+  "arguments": {
+    "query": "SELECT DATE(created_at) as date, COUNT(*) as daily_signups FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) GROUP BY DATE(created_at) ORDER BY date",
+    "params": []
+  }
+}
+```
+
+### 7. DDL Tool
+Execute Data Definition Language statements.
+
+**Parameters:**
+- `statement` (required): DDL statement
+
+**Examples:**
+```json
+{
+  "name": "ddl",
+  "arguments": {
+    "statement": "CREATE INDEX idx_email ON users(email)"
+  }
+}
+
+{
+  "name": "ddl",
+  "arguments": {
+    "statement": "ALTER TABLE users ADD COLUMN phone VARCHAR(20)"
+  }
+}
+```
+
+### 8. Transaction Tool
+Execute multiple operations atomically.
+
+**Parameters:**
+- `operations` (required): Array of operations to execute
+
+**Basic Examples:**
+```json
+{
+  "name": "transaction",
+  "arguments": {
+    "operations": [
+      {
+        "type": "create",
+        "table": "orders",
+        "data": {"user_id": 123, "total": 99.99}
+      },
+      {
+        "type": "update",
+        "table": "users",
+        "data": {"last_order_date": "2024-01-01"},
+        "where": {"id": 123}
+      }
+    ]
+  }
+}
+```
+
+**Advanced Transaction Examples:**
+```json
+{
+  "name": "transaction",
+  "arguments": {
+    "operations": [
+      {
+        "type": "create",
+        "table": "orders",
+        "data": {"user_id": 123, "total": 99.99, "status": "pending"}
+      },
+      {
+        "type": "update",
+        "table": "users",
+        "data": {"last_order_date": "2024-01-01"},
+        "where": {"id": 123}
+      },
+      {
+        "type": "create",
+        "table": "order_items",
+        "data": {"order_id": "LAST_INSERT_ID()", "product_id": 456, "quantity": 2}
+      }
+    ]
+  }
+}
+```
+
+### 9. Utility Tool
+Database health checks and metadata operations.
+
+**Parameters:**
+- `action` (required): Utility action (ping, version, stats, describe_table)
+- `table` (optional): Table name (required for describe_table)
+
+**Examples:**
+```json
+{
+  "name": "utility",
+  "arguments": {
+    "action": "ping"
+  }
+}
+
+{
+  "name": "utility",
+  "arguments": {
+    "action": "stats"
+  }
+}
+
+{
+  "name": "utility",
+  "arguments": {
+    "action": "describe_table",
+    "table": "users"
+  }
+}
+```
+
+## Security Features
+
+### SQL Injection Prevention
+- **Input Sanitization**: All table and column names are sanitized
+- **Parameter Binding**: All queries use parameterized statements
+- **Query Validation**: Dangerous SQL patterns are blocked
+- **Write Operation Protection**: Write operations require explicit permission
+
+### Identifier Validation
+- **Table Names**: Only alphanumeric characters and underscores allowed
+- **Column Names**: Validated against SQL injection patterns
+- **Where Conditions**: Values are checked for dangerous content
+
+### Connection Security
+- **Connection Pooling**: Secure connection management
+- **Timeout Controls**: Prevents hanging connections
+- **Error Handling**: Secure error messages without sensitive data
+
+## Security Best Practices
+
+### 1. Use Dedicated Database User
+Create a specific MySQL user with limited permissions:
+
+```sql
+CREATE USER 'mcp_user'@'localhost' IDENTIFIED BY 'secure_password';
+GRANT SELECT, INSERT, UPDATE, DELETE ON myapp.* TO 'mcp_user'@'localhost';
+FLUSH PRIVILEGES;
+```
+
+### 2. Enable Only Required Tools
+```bash
+# Read-only access
+npx katcoder-mysql-mcp "mysql://readonly:password@localhost:3306/mydb" "list,read,utility"
+
+# Write access without DDL
+npx katcoder-mysql-mcp "mysql://writer:password@localhost:3306/mydb" "list,read,create,update,delete,utility"
+```
+
+### 3. Use Environment Variables
+```bash
+export MYSQL_URL="mysql://user:password@localhost:3306/mydb"
+npx katcoder-mysql-mcp "$MYSQL_URL" "list,read,utility"
+```
+
+## Error Handling
+
+The server provides detailed error messages while maintaining security:
+
+```json
+{
+  "error": true,
+  "message": "Table 'nonexistent_table' does not exist",
+  "details": "Check the table name and try again"
+}
+```
+
+## Development
+
+### Building the Project
+```bash
+npm run build
+```
+
+### Running in Development Mode
+```bash
+npm run dev
+```
+
+### Testing
+```bash
+npm test
+```
+
+## Environment Variables
+
+- `LOG_LEVEL`: Set logging level (debug, info, warn, error)
+- `NODE_ENV`: Set environment (development, production)
+
+## Troubleshooting
+
+### Connection Issues
+- Verify MySQL server is running
+- Check connection string format
+- Ensure database exists
+- Verify user permissions
+
+#### Test Connection
+```bash
+# Test with utility tool
+npx katcoder-mysql-mcp "mysql://user:password@localhost:3306/mydb" "utility"
+
+# Then use: {"name": "utility", "arguments": {"action": "ping"}}
+```
+
+#### Check Database Version
+```bash
+npx katcoder-mysql-mcp "mysql://user:password@localhost:3306/mydb" "utility"
+
+# Then use: {"name": "utility", "arguments": {"action": "version"}}
+```
+
+### Permission Errors
+- Check MySQL user privileges
+- Ensure database access is granted
+- Verify table-level permissions
+
+### Performance Issues
+- Monitor connection pool usage
+- Check query execution times
+- Optimize database indexes
+
+#### Monitor Performance
+```bash
+npx katcoder-mysql-mcp "mysql://user:password@localhost:3306/mydb" "utility"
+
+# Then use: {"name": "utility", "arguments": {"action": "stats"}}
+```
+
+## Advanced Configuration
+
+### Custom Connection Pool Settings
+```bash
+# Environment variables for connection tuning
+export MYSQL_CONNECTION_LIMIT=20
+export MYSQL_ACQUIRE_TIMEOUT=30000
+export MYSQL_TIMEOUT=45000
+
+npx katcoder-mysql-mcp "mysql://user:password@localhost:3306/mydb"
+```
+
+### Logging Configuration
+```bash
+# Enable debug logging
+export LOG_LEVEL=debug
+
+# Enable verbose output
+npx katcoder-mysql-mcp "mysql://user:password@localhost:3306/mydb" "all" --verbose
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests
+5. Submit a pull request
+
+## License
+
+MIT License - see LICENSE file for details.
+
+## Support
+
+For issues and questions:
+- GitHub Issues: https://github.com/katkoder/katcoder-mysql-mcp/issues
+- Documentation: https://github.com/katkoder/katcoder-mysql-mcp/wiki
+
+## Changelog
+
+### v1.0.0
+- Initial release
+- All database operations implemented
+- Comprehensive security features
+- Full documentation
