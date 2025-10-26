@@ -307,10 +307,18 @@ export class MySQLMCPServer {
                 properties: {
                   type: {
                     type: 'string',
-                    enum: ['create', 'update', 'delete', 'execute'],
+                    enum: ['create', 'update', 'delete', 'execute', 'bulk_insert'],
                   },
                   table: { type: 'string' },
-                  data: { type: 'object' },
+                  data: {
+                    type: 'object',
+                    description: 'Data for create operation or single record for bulk_insert',
+                  },
+                  bulkData: {
+                    type: 'array',
+                    items: { type: 'object' },
+                    description: 'Array of records for bulk insert operation',
+                  },
                   where: { type: 'object' },
                   query: { type: 'string' },
                   params: { type: 'array' },
@@ -321,6 +329,28 @@ export class MySQLMCPServer {
             },
           },
           required: ['operations'],
+        },
+      },
+      {
+        name: 'bulk_insert',
+        description: 'Insert multiple records into a table efficiently',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            table: {
+              type: 'string',
+              description: 'Table name to insert data into',
+            },
+            data: {
+              type: 'array',
+              items: {
+                type: 'object',
+                description: 'Each record must have the same structure with column names as keys',
+              },
+              description: 'Array of records to insert. All records must have identical structure.',
+            },
+          },
+          required: ['table', 'data'],
         },
       },
       {
@@ -363,6 +393,8 @@ export class MySQLMCPServer {
         return this.handleDDL(args);
       case 'transaction':
         return this.handleTransaction(args);
+      case 'bulk_insert':
+        return this.handleBulkInsert(args);
       case 'utility':
         return this.handleUtility(args);
       default:
@@ -400,6 +432,10 @@ export class MySQLMCPServer {
 
   protected async handleTransaction(args: any): Promise<any> {
     throw new Error('handleTransaction not implemented');
+  }
+
+  protected async handleBulkInsert(args: any): Promise<any> {
+    throw new Error('handleBulkInsert not implemented');
   }
 
   protected async handleUtility(args: any): Promise<any> {

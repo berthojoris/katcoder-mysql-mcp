@@ -139,6 +139,72 @@ export class DatabaseManager {
     connection.release();
   }
 
+  async bulkInsert(table: string, data: any[]): Promise<any> {
+    try {
+      if (!data || !Array.isArray(data) || data.length === 0) {
+        throw new Error('Data must be a non-empty array');
+      }
+
+      // Validate all records have the same structure
+      const firstRecord = data[0];
+      if (!firstRecord || typeof firstRecord !== 'object') {
+        throw new Error('Each record must be a valid object');
+      }
+
+      const columns = Object.keys(firstRecord);
+      if (columns.length === 0) {
+        throw new Error('Records must contain at least one column');
+      }
+
+      // Validate all records have the same columns
+      for (let i = 1; i < data.length; i++) {
+        const record = data[i];
+        if (!record || typeof record !== 'object') {
+          throw new Error(`Record at index ${i} is not a valid object`);
+        }
+        
+        const recordColumns = Object.keys(record);
+        if (recordColumns.length !== columns.length ||
+            !columns.every(col => recordColumns.includes(col))) {
+          throw new Error(`Record at index ${i} has different structure than the first record`);
+        }
+      }
+
+      // Build SQL query using VALUES clause for bulk insert
+      const columnNames = columns.map(col => `\`${col}\``).join(', ');
+      const placeholders = columns.map(() => '?').join(', ');
+      const valuesPlaceholders = data.map(() => `(${placeholders})`).join(', ');
+      
+      const sql = `INSERT INTO \`${table}\` (${columnNames}) VALUES ${valuesPlaceholders}`;
+      
+      // Flatten all values
+      const allValues: any[] = [];
+      for (const record of data) {
+        for (const column of columns) {
+          allValues.push(record[column]);
+        }
+      }
+
+      logger.debug(`Executing bulk insert: ${sql}`, {
+        table,
+        recordCount: data.length,
+        columnCount: columns.length
+      });
+
+      const [result] = await this.pool.execute(sql, allValues);
+      
+      return {
+        affectedRows: (result as any).affectedRows,
+        insertId: (result as any).insertId,
+        recordCount: data.length,
+        message: `Successfully inserted ${data.length} records into ${table}`
+      };
+    } catch (error) {
+      logger.error(`Bulk insert failed for table ${table}:`, error);
+      throw this.formatDatabaseError(error);
+    }
+  }
+
   async close(): Promise<void> {
     try {
       await this.pool.end();

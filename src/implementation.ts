@@ -414,6 +414,43 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
             });
             break;
 
+          case 'bulk_insert':
+            this.validateTableName(operation.table);
+            
+            if (!operation.data || !Array.isArray(operation.data) || operation.data.length === 0) {
+              throw new Error('Bulk insert data must be a non-empty array');
+            }
+
+            // Validate each record in the bulk data
+            for (let i = 0; i < operation.data.length; i++) {
+              const record = operation.data[i];
+              if (!record || typeof record !== 'object') {
+                throw new Error(`Record at index ${i} is not a valid object`);
+              }
+              this.validateData(record);
+            }
+
+            const bulkColumns = Object.keys(operation.data[0]);
+            const bulkColumnNames = bulkColumns.map(col => `\`${col}\``).join(', ');
+            const placeholders = bulkColumns.map(() => '?').join(', ');
+            const valuesPlaceholders = operation.data.map(() => `(${placeholders})`).join(', ');
+            
+            const sql = `INSERT INTO \`${operation.table}\` (${bulkColumnNames}) VALUES ${valuesPlaceholders}`;
+            
+            // Flatten all values
+            const allValues: any[] = [];
+            for (const record of operation.data) {
+              for (const column of bulkColumns) {
+                allValues.push(record[column]);
+              }
+            }
+            
+            queries.push({
+              sql,
+              params: allValues,
+            });
+            break;
+
           case 'update':
             this.validateTableName(operation.table);
             this.validateData(operation.data);
@@ -425,7 +462,7 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
             const setClause = Object.keys(operation.data)
               .map(col => `\`${col}\` = ?`)
               .join(', ');
-            
+
             const updateValues = Object.values(operation.data);
             const { clause: updateWhereClause, params: updateWhereParams } = this.buildWhereClause(operation.where);
             
@@ -476,6 +513,39 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
       };
     } catch (error) {
       logger.error('Transaction operation failed:', error);
+      throw error;
+    }
+  }
+
+  protected async handleBulkInsert(args: any): Promise<any> {
+    try {
+      this.validateTableName(args.table);
+      
+      if (!args.data || !Array.isArray(args.data) || args.data.length === 0) {
+        throw new Error('Bulk insert data must be a non-empty array');
+      }
+
+      // Validate each record
+      for (let i = 0; i < args.data.length; i++) {
+        const record = args.data[i];
+        if (!record || typeof record !== 'object') {
+          throw new Error(`Record at index ${i} is not a valid object`);
+        }
+        this.validateData(record);
+      }
+
+      const result = await this.dbManager.bulkInsert(args.table, args.data);
+      
+      return {
+        success: true,
+        table: args.table,
+        recordCount: result.recordCount,
+        affectedRows: result.affectedRows,
+        insertedId: result.insertId,
+        message: result.message,
+      };
+    } catch (error) {
+      logger.error('Bulk insert operation failed:', error);
       throw error;
     }
   }

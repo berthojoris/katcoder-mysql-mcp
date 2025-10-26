@@ -39,8 +39,8 @@ program
       logger.info(`Enabled tools: ${enabledTools}`);
 
       // Parse enabled tools
-      const tools = enabledTools === 'all' 
-        ? ['list', 'read', 'create', 'update', 'delete', 'execute', 'ddl', 'transaction', 'utility']
+      const tools = enabledTools === 'all'
+        ? ['list', 'read', 'create', 'update', 'delete', 'execute', 'ddl', 'transaction', 'bulk_insert', 'utility']
         : enabledTools.split(',').map(tool => tool.trim());
 
       // Validate connection string

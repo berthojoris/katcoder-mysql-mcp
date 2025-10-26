@@ -15,6 +15,7 @@ A secure and feature-rich MySQL Model Context Protocol (MCP) server that enables
 - **List**: Browse tables and view table structures
 - **Read**: Query data with filtering, pagination, and sorting
 - **Create**: Insert new records with validation
+- **Bulk Insert**: Efficiently insert multiple records in a single operation
 - **Update**: Modify existing records safely
 - **Delete**: Remove records with mandatory WHERE clauses
 - **Execute**: Run custom SQL queries with security restrictions
@@ -254,7 +255,85 @@ Query data from tables with filtering and pagination.
 }
 ```
 
-### 3. Create Tool
+### 3. Bulk Insert Tool
+Efficiently insert multiple records into a table in a single operation.
+
+**Parameters:**
+- `table` (required): Target table name
+- `data` (required): Array of objects with identical column-value pairs
+
+**Examples:**
+```json
+{
+  "name": "bulk_insert",
+  "arguments": {
+    "table": "users",
+    "data": [
+      {
+        "name": "John Doe",
+        "email": "john@example.com",
+        "age": 30,
+        "status": "active"
+      },
+      {
+        "name": "Jane Smith",
+        "email": "jane@example.com",
+        "age": 25,
+        "status": "active"
+      },
+      {
+        "name": "Bob Wilson",
+        "email": "bob@example.com",
+        "age": 35,
+        "status": "inactive"
+      }
+    ]
+  }
+}
+```
+
+**Usage in Transactions:**
+```json
+{
+  "name": "transaction",
+  "arguments": {
+    "operations": [
+      {
+        "type": "bulk_insert",
+        "table": "users",
+        "data": [
+          {
+            "name": "Alice Brown",
+            "email": "alice@example.com",
+            "age": 28,
+            "status": "active"
+          }
+        ]
+      },
+      {
+        "type": "update",
+        "table": "user_stats",
+        "data": { "total_users": 1 },
+        "where": { "id": 1 }
+      }
+    ]
+  }
+}
+```
+
+**Response Format:**
+```json
+{
+  "success": true,
+  "table": "users",
+  "recordCount": 3,
+  "affectedRows": 3,
+  "insertedId": 1,
+  "message": "Successfully inserted 3 records into users"
+}
+```
+
+### 4. Create Tool
 Insert new records into tables.
 
 **Parameters:**
