@@ -30,17 +30,9 @@ A secure and feature-rich MySQL Model Context Protocol (MCP) server that enables
 
 ## Installation
 
-### Global Installation
-```bash
-npm install -g katcoder-mysql-mcp
-```
+> **Note**: This package is currently in development and not yet published to npm. Use the development installation method below.
 
-### Local Installation
-```bash
-npm install katcoder-mysql-mcp
-```
-
-### Development Installation
+### Development Installation (Recommended)
 ```bash
 git clone https://github.com/katkoder/katcoder-mysql-mcp.git
 cd katcoder-mysql-mcp
@@ -48,10 +40,37 @@ npm install
 npm run build
 ```
 
+### Future npm Installation (Coming Soon)
+Once published to npm, you will be able to install globally:
+```bash
+# This will be available after publication
+npm install -g katcoder-mysql-mcp
+```
+
+### Local npm Installation (Coming Soon)
+```bash
+# This will be available after publication
+npm install katcoder-mysql-mcp
+```
+
 ## Usage
 
 ### Command Line Interface
 
+#### Current Development Usage
+```bash
+# After building the project (npm run build)
+# Basic usage with all tools enabled
+node dist/cli.js "mysql://user:password@localhost:3306/database_name"
+
+# With specific tools enabled
+node dist/cli.js "mysql://user:password@localhost:3306/database_name" "list,read,utility"
+
+# With verbose logging
+node dist/cli.js "mysql://user:password@localhost:3306/database_name" "all" --verbose
+```
+
+#### Future npm Usage (After Publication)
 ```bash
 # Basic usage with all tools enabled
 npx katcoder-mysql-mcp "mysql://user:password@localhost:3306/database_name"
@@ -65,9 +84,49 @@ npx katcoder-mysql-mcp "mysql://user:password@localhost:3306/database_name" "all
 
 ### Configuration for AI Agents
 
-#### Claude Desktop Configuration
+#### Current Development Configuration
+
+**Claude Desktop Configuration:**
 Add this configuration to your Claude Desktop configuration file:
 
+```json
+{
+  "mcpServers": {
+    "katkoder_mysql": {
+      "command": "node",
+      "args": [
+        "/path/to/katcoder-mysql-mcp/dist/cli.js",
+        "mysql://root:password@localhost:3306/production_db",
+        "list,read,create,update,delete,utility"
+      ],
+      "cwd": "/path/to/katcoder-mysql-mcp"
+    }
+  }
+}
+```
+
+**Cursor IDE Configuration:**
+For Cursor IDE, add to your settings:
+
+```json
+{
+  "mcp.servers": {
+    "katkoder_mysql": {
+      "command": "node",
+      "args": [
+        "/path/to/katcoder-mysql-mcp/dist/cli.js",
+        "mysql://user:password@localhost:3306/development_db",
+        "list,read,execute,utility"
+      ],
+      "cwd": "/path/to/katcoder-mysql-mcp"
+    }
+  }
+}
+```
+
+#### Future npm Configuration (After Publication)
+
+**Claude Desktop Configuration:**
 ```json
 {
   "mcpServers": {
@@ -84,9 +143,7 @@ Add this configuration to your Claude Desktop configuration file:
 }
 ```
 
-#### Cursor IDE Configuration
-For Cursor IDE, add to your settings:
-
+**Cursor IDE Configuration:**
 ```json
 {
   "mcp.servers": {
