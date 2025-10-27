@@ -853,6 +853,100 @@ Database health checks and metadata operations.
 }
 ```
 
+### 10. Show Table Data Tool
+Display table data with advanced formatting, pagination, and schema information.
+
+**Parameters:**
+- `table` (required): Table name to display data from
+- `limit` (optional): Maximum number of rows to display (default: 50, max: 1000)
+- `offset` (optional): Number of rows to skip for pagination (default: 0)
+- `columns` (optional): Array of specific columns to display (default: all columns)
+- `where` (optional): Object with filter conditions (same format as read tool)
+- `orderBy` (optional): Column name to sort by (defaults to primary key or first column)
+- `orderDirection` (optional): Sort direction - 'ASC' or 'DESC' (default: 'ASC')
+- `showSchema` (optional): Include table schema information (default: true)
+- `format` (optional): Output format - 'table', 'json', or 'csv' (default: 'table')
+
+**Basic Examples:**
+```json
+{
+  "name": "show_table_data",
+  "arguments": {
+    "table": "users"
+  }
+}
+
+{
+  "name": "show_table_data",
+  "arguments": {
+    "table": "products",
+    "limit": 25,
+    "columns": ["id", "name", "price", "category"],
+    "orderBy": "price",
+    "orderDirection": "DESC"
+  }
+}
+```
+
+**Advanced Examples:**
+```json
+{
+  "name": "show_table_data",
+  "arguments": {
+    "table": "orders",
+    "where": {"status": "pending", "created_at": {"$gte": "2024-01-01"}},
+    "limit": 100,
+    "offset": 50,
+    "format": "csv",
+    "showSchema": false
+  }
+}
+
+{
+  "name": "show_table_data",
+  "arguments": {
+    "table": "users",
+    "columns": ["id", "email", "last_login"],
+    "where": {"status": "active"},
+    "orderBy": "last_login",
+    "orderDirection": "DESC",
+    "format": "json"
+  }
+}
+```
+
+**Response Format:**
+```json
+{
+  "success": true,
+  "table": "users",
+  "format": "table",
+  "pagination": {
+    "currentPage": 1,
+    "totalPages": 5,
+    "limit": 50,
+    "offset": 0,
+    "totalRows": 247,
+    "hasMore": true,
+    "showing": "1-50 of 247"
+  },
+  "data": [...],
+  "displayInfo": "formatted table string (for table format)",
+  "count": 50,
+  "schema": {
+    "columns": [...],
+    "totalColumns": 8
+  }
+}
+```
+
+**Practical Usage Scenarios:**
+- **Data Exploration**: Quickly browse table contents with automatic formatting
+- **Data Export**: Export table data in CSV format for external analysis
+- **Debugging**: View specific rows with filtering and pagination
+- **Schema Analysis**: Examine table structure alongside data
+- **Report Generation**: Generate formatted data displays for documentation
+
 ## Security Features
 
 ### SQL Injection Prevention

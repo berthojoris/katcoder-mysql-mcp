@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import winston from 'winston';
+import * as winston from 'winston';
 import { MySQLMCPImplementation } from './implementation';
 import { MCPServerConfig } from './server';
 
@@ -40,7 +40,7 @@ program
 
       // Parse enabled tools
       const tools = enabledTools === 'all'
-        ? ['list', 'read', 'create', 'update', 'delete', 'execute', 'ddl', 'transaction', 'bulk_insert', 'utility']
+        ? ['list', 'read', 'create', 'update', 'delete', 'execute', 'ddl', 'transaction', 'bulk_insert', 'utility', 'show_table_data']
         : enabledTools.split(',').map(tool => tool.trim());
 
       // Validate connection string

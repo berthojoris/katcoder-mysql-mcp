@@ -1,6 +1,6 @@
 import { MySQLMCPServer, MCPServerConfig } from './server.js';
 import { DatabaseManager } from './database.js';
-import winston from 'winston';
+import * as winston from 'winston';
 
 const logger = winston.createLogger({
   level: 'info',
@@ -53,6 +53,8 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
     if (sanitized !== column) {
       throw new Error('Invalid column name: contains illegal characters');
     }
+  }
+
   // Schema Modification Security and Validation
   private validateSchemaChangeSafety(operation: string, tableName: string, columnName?: string): void {
     // Prevent schema modifications on system tables
@@ -138,7 +140,6 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
     }
 
     return definition;
-  }
   }
 
   private validateWhereConditions(where: any): void {
@@ -387,29 +388,17 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
         changedRows: result.changedRows,
       };
     } catch (error) {
+      logger.error('Update operation failed:', error);
+      throw error;
+    }
+  }
+
   protected async handleAddColumn(args: any): Promise<any> {
     try {
       this.validateTableName(args.table);
       this.validateSchemaChangeSafety('addColumn', args.table, args.column?.name);
 
       if (!args.column || typeof args.column !== 'object') {
-      case 'bulk_insert':
-        return this.handleBulkInsert(args);
-      case 'add_column':
-        return this.handleAddColumn(args);
-      case 'drop_column':
-        return this.handleDropColumn(args);
-      case 'modify_column':
-        return this.handleModifyColumn(args);
-      case 'rename_column':
-        return this.handleRenameColumn(args);
-      case 'rename_table':
-        return this.handleRenameTable(args);
-      case 'add_index':
-        return this.handleAddIndex(args);
-      case 'drop_index':
-        return this.handleDropIndex(args);
-      case 'utility':
         throw new Error('Column definition is required');
       }
 
@@ -687,10 +676,6 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
       throw error;
     }
   }
-      logger.error('Update operation failed:', error);
-      throw error;
-    }
-  }
 
   protected async handleDelete(args: any): Promise<any> {
     try {
@@ -932,6 +917,188 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
       };
     } catch (error) {
       logger.error('Bulk insert operation failed:', error);
+      throw error;
+    }
+  }
+
+  protected async handleShowTableData(args: any): Promise<any> {
+    try {
+      this.validateTableName(args.table);
+
+      // Set defaults
+      const limit = Math.min(args.limit || 50, 1000);
+      const offset = args.offset || 0;
+      const showSchema = args.showSchema !== false; // default true
+      const format = args.format || 'table';
+      const orderDirection = args.orderDirection || 'ASC';
+
+      // Get table schema information if requested
+      let schema = null;
+      if (showSchema) {
+        const describeResult = await this.dbManager.query(`DESCRIBE \`${args.table}\``);
+        schema = {
+          columns: describeResult,
+          totalColumns: describeResult.length,
+        };
+      }
+
+      // Build column list
+      let columns = '*';
+      if (args.columns && Array.isArray(args.columns) && args.columns.length > 0) {
+        // Validate column names
+        args.columns.forEach((col: string) => this.validateColumnName(col));
+        columns = args.columns.map((col: string) => `\`${col}\``).join(', ');
+      }
+
+      // Build base query
+      let sql = `SELECT ${columns} FROM \`${args.table}\``;
+      const params: any[] = [];
+
+      // Add WHERE clause if provided
+      if (args.where) {
+        const { clause: whereClause, params: whereParams } = this.buildWhereClause(args.where);
+        sql += ` ${whereClause}`;
+        params.push(...whereParams);
+      }
+
+      // Determine order by column
+      let orderByColumn = args.orderBy;
+      if (!orderByColumn && showSchema && schema) {
+        // Try to find primary key or use first column
+        const primaryKey = schema.columns.find((col: any) => col.Key === 'PRI');
+        orderByColumn = primaryKey ? primaryKey.Field : schema.columns[0]?.Field;
+      }
+
+      // Add ORDER BY clause
+      if (orderByColumn) {
+        this.validateColumnName(orderByColumn);
+        sql += ` ORDER BY \`${orderByColumn}\` ${orderDirection}`;
+      }
+
+      // Add pagination
+      sql += ` LIMIT ${limit}`;
+      if (offset > 0) {
+        sql += ` OFFSET ${offset}`;
+      }
+
+      // Execute main query
+      const data = await this.dbManager.query(sql, params);
+
+      // Get total count for pagination info
+      let totalRows = 0;
+      if (data.length > 0) {
+        let countSql = `SELECT COUNT(*) as total FROM \`${args.table}\``;
+        if (args.where) {
+          const { clause: whereClause, params: whereParams } = this.buildWhereClause(args.where);
+          countSql += ` ${whereClause}`;
+          const countResult = await this.dbManager.query(countSql, whereParams);
+          totalRows = countResult[0]?.total || 0;
+        } else {
+          const countResult = await this.dbManager.query(countSql);
+          totalRows = countResult[0]?.total || 0;
+        }
+      }
+
+      // Format output based on requested format
+      let formattedData = data;
+      let displayInfo = '';
+
+      switch (format) {
+        case 'json':
+          formattedData = data;
+          break;
+        case 'csv':
+          if (data.length > 0) {
+            const headers = Object.keys(data[0]);
+            const csvRows = [
+              headers.join(','),
+              ...data.map((row: any) => 
+                headers.map(header => {
+                  const value = row[header];
+                  // Escape CSV values that contain commas, quotes, or newlines
+                  if (value === null || value === undefined) return '';
+                  const stringValue = String(value);
+                  if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+                    return `"${stringValue.replace(/"/g, '""')}"`;
+                  }
+                  return stringValue;
+                }).join(',')
+              )
+            ];
+            formattedData = csvRows.join('\n');
+          } else {
+            formattedData = '';
+          }
+          break;
+        case 'table':
+        default:
+          // Create a formatted table display
+          if (data.length > 0) {
+            const headers = Object.keys(data[0]);
+            const maxWidths = headers.map(header => {
+              const headerWidth = header.length;
+              const dataWidth = Math.max(...data.map((row: any) => {
+                const value = row[header];
+                return value === null || value === undefined ? 4 : String(value).length;
+              }));
+              return Math.max(headerWidth, dataWidth, 3);
+            });
+
+            // Create table header
+            const headerRow = headers.map((header, i) => header.padEnd(maxWidths[i])).join(' | ');
+            const separatorRow = maxWidths.map(width => '-'.repeat(width)).join('-+-');
+            
+            // Create data rows
+            const dataRows = data.map((row: any) => 
+              headers.map((header, i) => {
+                const value = row[header];
+                const displayValue = value === null ? 'NULL' : String(value);
+                return displayValue.padEnd(maxWidths[i]);
+              }).join(' | ')
+            );
+
+            displayInfo = [
+              headerRow,
+              separatorRow,
+              ...dataRows
+            ].join('\n');
+          } else {
+            displayInfo = 'No data found.';
+          }
+          break;
+      }
+
+      // Build pagination info
+      const hasMore = totalRows > (offset + limit);
+      const currentPage = Math.floor(offset / limit) + 1;
+      const totalPages = Math.ceil(totalRows / limit);
+
+      const result: any = {
+        success: true,
+        table: args.table,
+        format: format,
+        pagination: {
+          currentPage,
+          totalPages,
+          limit,
+          offset,
+          totalRows,
+          hasMore,
+          showing: `${offset + 1}-${Math.min(offset + data.length, totalRows)} of ${totalRows}`,
+        },
+        data: format === 'table' ? data : formattedData,
+        displayInfo: format === 'table' ? displayInfo : undefined,
+        count: data.length,
+      };
+
+      // Add schema info if requested
+      if (showSchema && schema) {
+        result.schema = schema;
+      }
+
+      return result;
+    } catch (error) {
+      logger.error('Show table data operation failed:', error);
       throw error;
     }
   }

@@ -1,6 +1,6 @@
-import mysql from 'mysql2/promise';
+import * as mysql from 'mysql2/promise';
 import { DatabaseConfig } from './server.js';
-import winston from 'winston';
+import * as winston from 'winston';
 
 const logger = winston.createLogger({
   level: 'info',
@@ -129,6 +129,8 @@ export class DatabaseManager {
       connection.release();
       logger.debug('Transaction connection released');
     }
+  }
+
   async schemaTransaction(operations: Array<{sql: string, params?: any[], description: string}>): Promise<any[]> {
     const connection = await this.pool.getConnection();
     
@@ -161,7 +163,6 @@ export class DatabaseManager {
       connection.release();
       logger.debug('Schema transaction connection released');
     }
-  }
   }
 
   async getConnection(): Promise<mysql.PoolConnection> {

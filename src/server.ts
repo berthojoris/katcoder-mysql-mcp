@@ -5,7 +5,7 @@ import {
   ListToolsRequestSchema,
   Tool,
 } from '@modelcontextprotocol/sdk/types.js';
-import winston from 'winston';
+import * as winston from 'winston';
 
 const logger = winston.createLogger({
   level: 'info',
@@ -434,41 +434,6 @@ export class MySQLMCPServer {
         name: 'modify_column',
         description: 'Modify an existing column definition',
         inputSchema: {
-  protected async handleBulkInsert(args: any): Promise<any> {
-    throw new Error('handleBulkInsert not implemented');
-  }
-
-  protected async handleAddColumn(args: any): Promise<any> {
-    throw new Error('handleAddColumn not implemented');
-  }
-
-  protected async handleDropColumn(args: any): Promise<any> {
-    throw new Error('handleDropColumn not implemented');
-  }
-
-  protected async handleModifyColumn(args: any): Promise<any> {
-    throw new Error('handleModifyColumn not implemented');
-  }
-
-  protected async handleRenameColumn(args: any): Promise<any> {
-    throw new Error('handleRenameColumn not implemented');
-  }
-
-  protected async handleRenameTable(args: any): Promise<any> {
-    throw new Error('handleRenameTable not implemented');
-  }
-
-  protected async handleAddIndex(args: any): Promise<any> {
-    throw new Error('handleAddIndex not implemented');
-  }
-
-  protected async handleDropIndex(args: any): Promise<any> {
-    throw new Error('handleDropIndex not implemented');
-  }
-
-  protected async handleUtility(args: any): Promise<any> {
-    throw new Error('handleUtility not implemented');
-  }
           type: 'object',
           properties: {
             table: {
@@ -602,7 +567,6 @@ export class MySQLMCPServer {
           required: ['table', 'name'],
         },
       },
-      },
       {
         name: 'utility',
         description: 'Utility functions for database management',
@@ -622,7 +586,99 @@ export class MySQLMCPServer {
           required: ['action'],
         },
       },
+      {
+        name: 'show_table_data',
+        description: 'Display table data in a formatted, user-friendly way with automatic pagination and column information',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            table: {
+              type: 'string',
+              description: 'Table name to display data from',
+            },
+            limit: {
+              type: 'number',
+              description: 'Maximum number of rows to display (default: 50, max: 1000)',
+              minimum: 1,
+              maximum: 1000,
+            },
+            offset: {
+              type: 'number',
+              description: 'Number of rows to skip (default: 0)',
+              minimum: 0,
+            },
+            columns: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Specific columns to display (default: all columns)',
+            },
+            where: {
+              type: 'object',
+              description: 'Filter conditions as key-value pairs',
+            },
+            orderBy: {
+              type: 'string',
+              description: 'Column to sort by (default: primary key or first column)',
+            },
+            orderDirection: {
+              type: 'string',
+              enum: ['ASC', 'DESC'],
+              description: 'Sort direction (default: ASC)',
+            },
+            showSchema: {
+              type: 'boolean',
+              description: 'Include table schema information in the output (default: true)',
+            },
+            format: {
+              type: 'string',
+              enum: ['table', 'json', 'csv'],
+              description: 'Output format (default: table)',
+            },
+          },
+          required: ['table'],
+        },
+      },
     ];
+  }
+
+  protected async handleBulkInsert(args: any): Promise<any> {
+    throw new Error('handleBulkInsert not implemented');
+  }
+
+  protected async handleAddColumn(args: any): Promise<any> {
+    throw new Error('handleAddColumn not implemented');
+  }
+
+  protected async handleDropColumn(args: any): Promise<any> {
+    throw new Error('handleDropColumn not implemented');
+  }
+
+  protected async handleModifyColumn(args: any): Promise<any> {
+    throw new Error('handleModifyColumn not implemented');
+  }
+
+  protected async handleRenameColumn(args: any): Promise<any> {
+    throw new Error('handleRenameColumn not implemented');
+  }
+
+  protected async handleRenameTable(args: any): Promise<any> {
+    throw new Error('handleRenameTable not implemented');
+  }
+
+  protected async handleAddIndex(args: any): Promise<any> {
+    throw new Error('handleAddIndex not implemented');
+  }
+
+  protected async handleDropIndex(args: any): Promise<any> {
+    throw new Error('handleDropIndex not implemented');
+  }
+
+  protected async handleShowTableData(args: any): Promise<any> {
+    throw new Error('handleShowTableData not implemented');
+  }
+
+  protected async handleUtility(args: any): Promise<any> {
+    throw new Error('handleUtility not implemented');
   }
 
   private async executeTool(name: string, args: any): Promise<any> {
@@ -645,6 +701,8 @@ export class MySQLMCPServer {
         return this.handleTransaction(args);
       case 'bulk_insert':
         return this.handleBulkInsert(args);
+      case 'show_table_data':
+        return this.handleShowTableData(args);
       case 'utility':
         return this.handleUtility(args);
       default:
@@ -682,14 +740,6 @@ export class MySQLMCPServer {
 
   protected async handleTransaction(args: any): Promise<any> {
     throw new Error('handleTransaction not implemented');
-  }
-
-  protected async handleBulkInsert(args: any): Promise<any> {
-    throw new Error('handleBulkInsert not implemented');
-  }
-
-  protected async handleUtility(args: any): Promise<any> {
-    throw new Error('handleUtility not implemented');
   }
 
   async run(): Promise<void> {
