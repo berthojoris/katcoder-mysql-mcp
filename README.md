@@ -71,7 +71,10 @@ npm install katcoder-mysql-mcp
 # Basic usage with all tools enabled
 node dist/cli.js "mysql://user:password@localhost:3306/database_name"
 
-# With specific tools enabled
+# With all tools enabled (recommended)
+node dist/cli.js "mysql://user:password@localhost:3306/database_name" "all"
+
+# With specific tools enabled (if you need to limit access)
 node dist/cli.js "mysql://user:password@localhost:3306/database_name" "list,read,utility"
 
 # With verbose logging
@@ -83,7 +86,10 @@ node dist/cli.js "mysql://user:password@localhost:3306/database_name" "all" --ve
 # Basic usage with all tools enabled
 npx katcoder-mysql-mcp "mysql://user:password@localhost:3306/database_name"
 
-# With specific tools enabled
+# With all tools enabled (recommended)
+npx katcoder-mysql-mcp "mysql://user:password@localhost:3306/database_name" "all"
+
+# With specific tools enabled (if you need to limit access)
 npx katcoder-mysql-mcp "mysql://user:password@localhost:3306/database_name" "list,read,utility"
 
 # With verbose logging
@@ -105,7 +111,7 @@ Add this configuration to your Claude Desktop configuration file:
       "args": [
         "/path/to/katcoder-mysql-mcp/dist/cli.js",
         "mysql://root:password@localhost:3306/production_db",
-        "list,read,create,update,delete,utility"
+        "all"
       ],
       "cwd": "/path/to/katcoder-mysql-mcp"
     }
@@ -124,7 +130,7 @@ For Cursor IDE, add to your settings:
       "args": [
         "/path/to/katcoder-mysql-mcp/dist/cli.js",
         "mysql://user:password@localhost:3306/development_db",
-        "list,read,execute,utility"
+        "all"
       ],
       "cwd": "/path/to/katcoder-mysql-mcp"
     }
@@ -144,7 +150,7 @@ For Cursor IDE, add to your settings:
         "-y",
         "katcoder-mysql-mcp",
         "mysql://root:password@localhost:3306/production_db",
-        "list,read,create,update,delete,utility"
+        "all"
       ]
     }
   }
@@ -161,7 +167,7 @@ For Cursor IDE, add to your settings:
         "-y",
         "katcoder-mysql-mcp",
         "mysql://user:password@localhost:3306/development_db",
-        "list,read,execute,utility"
+        "all"
       ]
     }
   }
@@ -976,7 +982,13 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON myapp.* TO 'mcp_user'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
-### 2. Enable Only Required Tools
+### 2. Enable All Tools (Recommended)
+```bash
+# Full access with all tools enabled
+npx katcoder-mysql-mcp "mysql://user:password@localhost:3306/mydb" "all"
+```
+
+### 3. Restrict Tools for Security (Optional)
 ```bash
 # Read-only access
 npx katcoder-mysql-mcp "mysql://readonly:password@localhost:3306/mydb" "list,read,utility"
@@ -985,10 +997,10 @@ npx katcoder-mysql-mcp "mysql://readonly:password@localhost:3306/mydb" "list,rea
 npx katcoder-mysql-mcp "mysql://writer:password@localhost:3306/mydb" "list,read,create,update,delete,utility"
 ```
 
-### 3. Use Environment Variables
+### 4. Use Environment Variables
 ```bash
 export MYSQL_URL="mysql://user:password@localhost:3306/mydb"
-npx katcoder-mysql-mcp "$MYSQL_URL" "list,read,utility"
+npx katcoder-mysql-mcp "$MYSQL_URL" "all"
 ```
 
 ## Error Handling
@@ -1035,15 +1047,15 @@ npm test
 
 #### Test Connection
 ```bash
-# Test with utility tool
-npx katcoder-mysql-mcp "mysql://user:password@localhost:3306/mydb" "utility"
+# Test with all tools enabled
+npx katcoder-mysql-mcp "mysql://user:password@localhost:3306/mydb" "all"
 
 # Then use: {"name": "utility", "arguments": {"action": "ping"}}
 ```
 
 #### Check Database Version
 ```bash
-npx katcoder-mysql-mcp "mysql://user:password@localhost:3306/mydb" "utility"
+npx katcoder-mysql-mcp "mysql://user:password@localhost:3306/mydb" "all"
 
 # Then use: {"name": "utility", "arguments": {"action": "version"}}
 ```
@@ -1060,7 +1072,7 @@ npx katcoder-mysql-mcp "mysql://user:password@localhost:3306/mydb" "utility"
 
 #### Monitor Performance
 ```bash
-npx katcoder-mysql-mcp "mysql://user:password@localhost:3306/mydb" "utility"
+npx katcoder-mysql-mcp "mysql://user:password@localhost:3306/mydb" "all"
 
 # Then use: {"name": "utility", "arguments": {"action": "stats"}}
 ```
