@@ -165,6 +165,20 @@ export class MySQLMCPServer {
         },
       },
       {
+        name: 'describe_table',
+        description: 'Get detailed schema information for a specific table including columns, types, keys, and constraints',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            table: {
+              type: 'string',
+              description: 'Table name to describe',
+            },
+          },
+          required: ['table'],
+        },
+      },
+      {
         name: 'read',
         description: 'Read data from a table with optional filtering and pagination',
         inputSchema: {
@@ -681,10 +695,16 @@ export class MySQLMCPServer {
     throw new Error('handleUtility not implemented');
   }
 
+  protected async handleDescribeTable(args: any): Promise<any> {
+    throw new Error('handleDescribeTable not implemented');
+  }
+
   private async executeTool(name: string, args: any): Promise<any> {
     switch (name) {
       case 'list':
         return this.handleList(args);
+      case 'describe_table':
+        return this.handleDescribeTable(args);
       case 'read':
         return this.handleRead(args);
       case 'create':
@@ -701,6 +721,20 @@ export class MySQLMCPServer {
         return this.handleTransaction(args);
       case 'bulk_insert':
         return this.handleBulkInsert(args);
+      case 'add_column':
+        return this.handleAddColumn(args);
+      case 'drop_column':
+        return this.handleDropColumn(args);
+      case 'modify_column':
+        return this.handleModifyColumn(args);
+      case 'rename_column':
+        return this.handleRenameColumn(args);
+      case 'rename_table':
+        return this.handleRenameTable(args);
+      case 'add_index':
+        return this.handleAddIndex(args);
+      case 'drop_index':
+        return this.handleDropIndex(args);
       case 'show_table_data':
         return this.handleShowTableData(args);
       case 'utility':

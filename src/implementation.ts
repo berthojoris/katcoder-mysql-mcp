@@ -93,13 +93,14 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
       'ENUM', 'SET', 'JSON'
     ];
 
-    const typePattern = /^([A-Z]+)(\(\d+\))?(\s+(UNSIGNED|SIGNED|ZEROFILL))?(\s+(NOT\s+)?NULL)?(\s+DEFAULT\s+[^,]+)?(\s+(AUTO_INCREMENT|ON\s+UPDATE\s+CURRENT_TIMESTAMP))?(\s+COMMENT\s+'[^']*')?$/i;
+    // Pattern for basic data type validation (e.g., VARCHAR(255), INT, DECIMAL(10,2), ENUM('a','b'))
+    const typePattern = /^([A-Z]+)(\(\d+(\,\d+)?\)|\([^)]+\))?(\s+(UNSIGNED|SIGNED|ZEROFILL))*$/i;
     
-    if (!typePattern.test(dataType.toUpperCase())) {
-      throw new Error(`Invalid column type: '${dataType}'. Use standard MySQL data types.`);
+    if (!typePattern.test(dataType.trim().toUpperCase())) {
+      throw new Error(`Invalid column type format: '${dataType}'. Use standard MySQL data types like VARCHAR(255), INT, DECIMAL(10,2), etc.`);
     }
 
-    const baseType = dataType.split('(')[0].split(' ')[0].toUpperCase();
+    const baseType = dataType.trim().split('(')[0].split(' ')[0].toUpperCase();
     if (!allowedTypes.includes(baseType)) {
       throw new Error(`Unsupported column type: '${baseType}'. Allowed types: ${allowedTypes.join(', ')}`);
     }
@@ -1168,6 +1169,91 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
       }
     } catch (error) {
       logger.error('Utility operation failed:', error);
+      throw error;
+    }
+  }
+
+  protected async handleDescribeTable(args: any): Promise<any> {
+    try {
+      if (!args.table) {
+        throw new Error('Table name is required');
+      }
+      
+      this.validateTableName(args.table);
+      
+      // Get detailed table structure using DESCRIBE
+      const describeResult = await this.dbManager.query(`DESCRIBE \`${args.table}\``);
+      
+      // Get additional table information from INFORMATION_SCHEMA
+      const databaseName = this.getDatabaseConfig().database;
+      const tableInfoQuery = `
+        SELECT 
+          TABLE_COMMENT as comment,
+          ENGINE as engine,
+          TABLE_ROWS as estimated_rows,
+          DATA_LENGTH as data_length,
+          INDEX_LENGTH as index_length,
+          CREATE_TIME as created_at,
+          UPDATE_TIME as updated_at
+        FROM INFORMATION_SCHEMA.TABLES 
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
+      `;
+      
+      const tableInfo = await this.dbManager.query(tableInfoQuery, [databaseName, args.table]);
+      
+      // Get indexes information
+      const indexQuery = `
+        SELECT 
+          INDEX_NAME as name,
+          COLUMN_NAME as column_name,
+          NON_UNIQUE as non_unique,
+          INDEX_TYPE as type,
+          SEQ_IN_INDEX as sequence
+        FROM INFORMATION_SCHEMA.STATISTICS 
+        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
+        ORDER BY INDEX_NAME, SEQ_IN_INDEX
+      `;
+      
+      const indexes = await this.dbManager.query(indexQuery, [databaseName, args.table]);
+      
+      // Group indexes by name
+      const indexMap = new Map();
+      indexes.forEach((idx: any) => {
+        if (!indexMap.has(idx.name)) {
+          indexMap.set(idx.name, {
+            name: idx.name,
+            type: idx.type,
+            unique: idx.non_unique === 0,
+            columns: []
+          });
+        }
+        indexMap.get(idx.name).columns.push(idx.column_name);
+      });
+      
+      return {
+        success: true,
+        table: args.table,
+        columns: describeResult.map((col: any) => ({
+          name: col.Field,
+          type: col.Type,
+          nullable: col.Null === 'YES',
+          key: col.Key,
+          default: col.Default,
+          extra: col.Extra
+        })),
+        table_info: tableInfo[0] ? {
+          comment: tableInfo[0].comment,
+          engine: tableInfo[0].engine,
+          estimated_rows: tableInfo[0].estimated_rows,
+          data_length: tableInfo[0].data_length,
+          index_length: tableInfo[0].index_length,
+          created_at: tableInfo[0].created_at,
+          updated_at: tableInfo[0].updated_at
+        } : null,
+        indexes: Array.from(indexMap.values())
+      };
+    } catch (error) {
+      logger.error('Describe table operation failed:', error);
       throw error;
     }
   }

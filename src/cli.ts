@@ -40,7 +40,7 @@ program
 
       // Parse enabled tools
       const tools = enabledTools === 'all'
-        ? ['list', 'read', 'create', 'update', 'delete', 'execute', 'ddl', 'transaction', 'bulk_insert', 'utility', 'show_table_data']
+        ? ['list', 'describe_table', 'read', 'create', 'update', 'delete', 'execute', 'ddl', 'transaction', 'bulk_insert', 'add_column', 'drop_column', 'modify_column', 'rename_column', 'rename_table', 'add_index', 'drop_index', 'utility', 'show_table_data']
         : enabledTools.split(',').map(tool => tool.trim());
 
       // Validate connection string
