@@ -36,6 +36,101 @@ A secure and feature-rich MySQL Model Context Protocol (MCP) server that enables
 - **Connection Pooling**: Configurable pool settings
 - **Timeout Controls**: Connection and query timeouts
 
+## Tool Permissions & Security
+
+### 🎯 Recommended Approach: Use "all" Tools
+
+**For most use cases, we recommend enabling all tools** by using `"all"` as the tool parameter. This provides:
+
+- **Full Functionality**: Access to all database operations including DDL, transactions, and advanced features
+- **AI Agent Compatibility**: Ensures AI agents can see and use all available tools
+- **Future-Proof**: Automatically includes new tools as they're added
+- **Simplified Configuration**: No need to manually list specific tools
+
+```bash
+# Recommended: Enable all tools
+npx katcoder-mysql-mcp "mysql://user:password@localhost:3306/mydb" "all"
+```
+
+### 🔒 Security-First Approach: Manual Tool Selection
+
+**Use manual tool selection only when you need to restrict access** for security or compliance reasons:
+
+#### Read-Only Access
+Perfect for reporting, analytics, or read-only AI agents:
+```bash
+npx katcoder-mysql-mcp "mysql://readonly:password@localhost:3306/mydb" "list,read,utility"
+```
+
+**Available tools:** `list`, `read`, `utility`
+- **list**: Browse tables and schema
+- **read**: Query data with filtering and pagination
+- **utility**: Database health checks and metadata
+
+#### Basic Write Access
+For applications that need to modify data but not schema:
+```bash
+npx katcoder-mysql-mcp "mysql://writer:password@localhost:3306/mydb" "list,read,create,update,delete,utility"
+```
+
+**Available tools:** `list`, `read`, `create`, `update`, `delete`, `utility`
+- Includes all read-only tools plus:
+- **create**: Insert new records
+- **update**: Modify existing records
+- **delete**: Remove records (with mandatory WHERE clauses)
+
+#### Full Database Access
+For database administrators and development environments:
+```bash
+npx katcoder-mysql-mcp "mysql://admin:password@localhost:3306/mydb" "all"
+```
+
+**All available tools:** `list`, `read`, `create`, `update`, `delete`, `execute`, `ddl`, `transaction`, `bulk_insert`, `utility`, `add_column`, `drop_column`, `modify_column`, `rename_column`, `rename_table`, `add_index`, `drop_index`, `show_table_data`
+
+### 🛡️ Security Considerations
+
+#### Database User Permissions
+**Always use MySQL user accounts with appropriate privileges:**
+
+```sql
+-- Read-only user
+CREATE USER 'readonly'@'%' IDENTIFIED BY 'secure_password';
+GRANT SELECT ON mydb.* TO 'readonly'@'%';
+
+-- Write user (no DDL)
+CREATE USER 'writer'@'%' IDENTIFIED BY 'secure_password';
+GRANT SELECT, INSERT, UPDATE, DELETE ON mydb.* TO 'writer'@'%';
+
+-- Admin user (full access)
+CREATE USER 'admin'@'%' IDENTIFIED BY 'secure_password';
+GRANT ALL PRIVILEGES ON mydb.* TO 'admin'@'%';
+
+FLUSH PRIVILEGES;
+```
+
+#### Tool-Level vs Database-Level Security
+- **Tool-level restrictions** limit what operations the MCP server can perform
+- **Database-level permissions** provide the ultimate security boundary
+- **Best practice**: Use both layers for defense in depth
+
+#### Production Recommendations
+1. **Use specific database users** with minimal required privileges
+2. **Enable only necessary tools** for production environments
+3. **Use read-only connections** for reporting and analytics
+4. **Monitor database access** and audit tool usage
+5. **Use environment variables** for connection strings (never hardcode passwords)
+
+### 📊 Tool Selection Quick Reference
+
+| Use Case | Recommended Tools | Security Level |
+|----------|------------------|----------------|
+| **AI Development** | `"all"` | Medium (use dev database) |
+| **Production AI** | `"all"` | High (restricted DB user) |
+| **Reporting/Analytics** | `"list,read,utility"` | High |
+| **Data Entry Apps** | `"list,read,create,update,delete,utility"` | Medium |
+| **Database Admin** | `"all"` | Low (trusted environment) |
+| **CI/CD Pipelines** | `"all"` | Medium (isolated environment) |
+
 ## Installation
 
 > **Note**: This package is currently in development and not yet published to npm. Use the development installation method below.
@@ -973,35 +1068,100 @@ Display table data with advanced formatting, pagination, and schema information.
 
 ## Security Best Practices
 
-### 1. Use Dedicated Database User
-Create a specific MySQL user with limited permissions:
+### 1. Recommended Setup: All Tools with Restricted Database User
+**Best practice for production and AI agents:**
 
 ```sql
-CREATE USER 'mcp_user'@'localhost' IDENTIFIED BY 'secure_password';
-GRANT SELECT, INSERT, UPDATE, DELETE ON myapp.* TO 'mcp_user'@'localhost';
+-- Create user with appropriate database-level permissions
+CREATE USER 'mcp_ai_agent'@'localhost' IDENTIFIED BY 'secure_password';
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, DROP ON myapp.* TO 'mcp_ai_agent'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
-### 2. Enable All Tools (Recommended)
 ```bash
-# Full access with all tools enabled
-npx katcoder-mysql-mcp "mysql://user:password@localhost:3306/mydb" "all"
+# Enable all tools - database permissions provide the security boundary
+npx katcoder-mysql-mcp "mysql://mcp_ai_agent:secure_password@localhost:3306/myapp" "all"
 ```
 
-### 3. Restrict Tools for Security (Optional)
-```bash
-# Read-only access
-npx katcoder-mysql-mcp "mysql://readonly:password@localhost:3306/mydb" "list,read,utility"
+**Why this approach works:**
+- ✅ AI agents can see and use all available tools
+- ✅ Database user permissions control actual access
+- ✅ Future-proof as new tools are automatically available
+- ✅ Simplified configuration management
 
-# Write access without DDL
-npx katcoder-mysql-mcp "mysql://writer:password@localhost:3306/mydb" "list,read,create,update,delete,utility"
+### 2. Security-First Scenarios
+
+#### Read-Only Analytics/Reporting
+```sql
+CREATE USER 'mcp_readonly'@'localhost' IDENTIFIED BY 'secure_password';
+GRANT SELECT ON myapp.* TO 'mcp_readonly'@'localhost';
+FLUSH PRIVILEGES;
 ```
 
-### 4. Use Environment Variables
 ```bash
-export MYSQL_URL="mysql://user:password@localhost:3306/mydb"
+# Restrict tools to read-only operations
+npx katcoder-mysql-mcp "mysql://mcp_readonly:secure_password@localhost:3306/myapp" "list,read,utility"
+```
+
+#### Data Entry Applications (No Schema Changes)
+```sql
+CREATE USER 'mcp_writer'@'localhost' IDENTIFIED BY 'secure_password';
+GRANT SELECT, INSERT, UPDATE, DELETE ON myapp.* TO 'mcp_writer'@'localhost';
+FLUSH PRIVILEGES;
+```
+
+```bash
+# Allow data operations but restrict DDL tools
+npx katcoder-mysql-mcp "mysql://mcp_writer:secure_password@localhost:3306/myapp" "list,read,create,update,delete,bulk_insert,utility"
+```
+
+### 3. Development Environment
+```bash
+# Development: Use all tools with admin user
+npx katcoder-mysql-mcp "mysql://root:password@localhost:3306/dev_db" "all"
+```
+
+### 4. Environment Variables (Recommended)
+```bash
+# Set connection string as environment variable
+export MYSQL_URL="mysql://mcp_ai_agent:secure_password@localhost:3306/myapp"
+
+# Use with all tools enabled
+npx katcoder-mysql-mcp "$MYSQL_URL" "all"
+
+# Or with specific tools for restricted access
+npx katcoder-mysql-mcp "$MYSQL_URL" "list,read,utility"
+```
+
+### 5. Docker/Container Environments
+```bash
+# Using Docker secrets or environment variables
+export MYSQL_URL="mysql://mcp_user:${DB_PASSWORD}@mysql-container:3306/production_db"
 npx katcoder-mysql-mcp "$MYSQL_URL" "all"
 ```
+
+## Quick Reference: Choosing the Right Permission Approach
+
+| Use Case | Recommended Tools | Database Permissions | Security Level |
+|----------|------------------|---------------------|----------------|
+| **AI Development & Prototyping** | `"all"` | Full admin access | Low (dev only) |
+| **Production AI Agent** | `"all"` | Limited to specific database/schema | High ⭐ |
+| **Read-only Analytics** | `"list,read,utility"` | SELECT only | High |
+| **Data Entry App** | `"list,read,create,update,delete,bulk_insert,utility"` | No DDL permissions | Medium |
+| **Schema Migration Tool** | `"all"` | DDL permissions required | Medium |
+| **Reporting Dashboard** | `"list,read,utility"` | SELECT only | High |
+
+### 🎯 **Most Common Setup (Recommended)**
+```bash
+# 1. Create restricted database user
+CREATE USER 'mcp_agent'@'localhost' IDENTIFIED BY 'secure_password';
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, DROP ON your_app.* TO 'mcp_agent'@'localhost';
+
+# 2. Use all tools - security handled by database permissions
+npx katcoder-mysql-mcp "mysql://mcp_agent:secure_password@localhost:3306/your_app" "all"
+```
+
+**Why this works:** Database permissions provide the real security boundary, while "all" tools ensure AI agents can see and use all available functionality.
 
 ## Error Handling
 
