@@ -564,6 +564,7 @@ Execute Data Definition Language statements.
     "statement": "CREATE INDEX idx_email ON users(email)"
   }
 }
+```
 
 ### 8. Add Column Tool
 Add new columns to existing tables with comprehensive type and constraint support.
