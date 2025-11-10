@@ -25,6 +25,27 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
   constructor(config: MCPServerConfig) {
     super(config);
     this.dbManager = new DatabaseManager(this.getDatabaseConfig());
+    this.initializeConnection();
+  }
+
+  private async initializeConnection(): Promise<void> {
+    try {
+      logger.info("Initializing MySQL connection...");
+      const isConnected = await this.dbManager.testConnection();
+
+      if (isConnected) {
+        logger.info("MySQL connection established successfully");
+        // Warm up the connection pool for better performance
+        await this.dbManager.warmupPool();
+      } else {
+        logger.error(
+          "Failed to establish MySQL connection. Server will continue but operations may fail.",
+        );
+      }
+    } catch (error) {
+      logger.error("Error during connection initialization:", error);
+      // Don't throw - allow server to start and retry on first operation
+    }
   }
 
   // SQL Injection Prevention Utilities
