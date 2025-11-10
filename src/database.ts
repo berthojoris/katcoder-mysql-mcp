@@ -1,22 +1,22 @@
-import * as mysql from 'mysql2/promise';
-import { DatabaseConfig } from './server.js';
-import * as winston from 'winston';
+import * as mysql from "mysql2/promise";
+import { DatabaseConfig } from "./server.js";
+import * as winston from "winston";
 
 const logger = winston.createLogger({
-  level: 'info',
+  level: "info",
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format.errors({ stack: true }),
-    winston.format.json()
+    winston.format.json(),
   ),
   transports: [
     new winston.transports.Console({
       format: winston.format.combine(
         winston.format.colorize(),
-        winston.format.simple()
-      )
-    })
-  ]
+        winston.format.simple(),
+      ),
+    }),
+  ],
 });
 
 export class DatabaseManager {
@@ -58,24 +58,24 @@ export class DatabaseManager {
   }
 
   private setupConnectionErrorHandling(): void {
-    this.pool.on('connection', (connection) => {
-      logger.debug('New database connection established');
-      
-      connection.on('error', (err) => {
-        logger.error('Database connection error:', err);
+    this.pool.on("connection", (connection) => {
+      logger.debug("New database connection established");
+
+      connection.on("error", (err) => {
+        logger.error("Database connection error:", err);
       });
 
-      connection.on('close', () => {
-        logger.debug('Database connection closed');
+      connection.on("close", () => {
+        logger.debug("Database connection closed");
       });
     });
 
-    this.pool.on('acquire', (connection) => {
-      logger.debug('Connection acquired from pool');
+    this.pool.on("acquire", (connection) => {
+      logger.debug("Connection acquired from pool");
     });
 
-    this.pool.on('release', (connection) => {
-      logger.debug('Connection released to pool');
+    this.pool.on("release", (connection) => {
+      logger.debug("Connection released to pool");
     });
   }
 
@@ -84,10 +84,10 @@ export class DatabaseManager {
       const connection = await this.pool.getConnection();
       await connection.ping();
       connection.release();
-      logger.info('Database connection test successful');
+      logger.info("Database connection test successful");
       return true;
     } catch (error) {
-      logger.error('Database connection test failed:', error);
+      logger.error("Database connection test failed:", error);
       return false;
     }
   }
@@ -103,46 +103,51 @@ export class DatabaseManager {
     }
   }
 
-  async transaction(queries: Array<{sql: string, params?: any[]}>): Promise<any[]> {
+  async transaction(
+    queries: Array<{ sql: string; params?: any[] }>,
+  ): Promise<any[]> {
     const connection = await this.pool.getConnection();
-    
+
     try {
       await connection.beginTransaction();
-      logger.info('Transaction started');
+      logger.info("Transaction started");
 
       const results = [];
-      for (const {sql, params} of queries) {
+      for (const { sql, params } of queries) {
         logger.debug(`Transaction query: ${sql}`, { params });
         const [result] = await connection.execute(sql, params);
         results.push(result);
       }
 
       await connection.commit();
-      logger.info('Transaction committed successfully');
+      logger.info("Transaction committed successfully");
       return results;
-
     } catch (error) {
       await connection.rollback();
-      logger.error('Transaction rolled back due to error:', error);
+      logger.error("Transaction rolled back due to error:", error);
       throw this.formatDatabaseError(error);
     } finally {
       connection.release();
-      logger.debug('Transaction connection released');
+      logger.debug("Transaction connection released");
     }
   }
 
-  async schemaTransaction(operations: Array<{sql: string, params?: any[], description: string}>): Promise<any[]> {
+  async schemaTransaction(
+    operations: Array<{ sql: string; params?: any[]; description: string }>,
+  ): Promise<any[]> {
     const connection = await this.pool.getConnection();
-    
+
     try {
       await connection.beginTransaction();
-      logger.info(`Schema transaction started with ${operations.length} operations`);
+      logger.info(
+        `Schema transaction started with ${operations.length} operations`,
+      );
 
       const results = [];
-      for (const {sql, params, description} of operations) {
+      for (const { sql, params, description } of operations) {
         logger.info(`Executing schema operation: ${description}`);
         logger.debug(`Schema SQL: ${sql}`, { params });
-        
+
         const [result] = await connection.execute(sql, params);
         results.push({
           description,
@@ -152,16 +157,15 @@ export class DatabaseManager {
       }
 
       await connection.commit();
-      logger.info('Schema transaction committed successfully');
+      logger.info("Schema transaction committed successfully");
       return results;
-
     } catch (error) {
       await connection.rollback();
-      logger.error('Schema transaction rolled back due to error:', error);
+      logger.error("Schema transaction rolled back due to error:", error);
       throw this.formatDatabaseError(error);
     } finally {
       connection.release();
-      logger.debug('Schema transaction connection released');
+      logger.debug("Schema transaction connection released");
     }
   }
 
@@ -176,41 +180,53 @@ export class DatabaseManager {
   async bulkInsert(table: string, data: any[]): Promise<any> {
     try {
       if (!data || !Array.isArray(data) || data.length === 0) {
-        throw new Error('Data must be a non-empty array');
+        throw new Error("Data must be a non-empty array");
       }
 
       // Validate all records have the same structure
       const firstRecord = data[0];
-      if (!firstRecord || typeof firstRecord !== 'object') {
-        throw new Error('Each record must be a valid object');
+      if (!firstRecord || typeof firstRecord !== "object") {
+        throw new Error("Each record must be a valid object");
       }
 
       const columns = Object.keys(firstRecord);
       if (columns.length === 0) {
-        throw new Error('Records must contain at least one column');
+        throw new Error("Records must contain at least one column");
       }
 
       // Validate all records have the same columns
       for (let i = 1; i < data.length; i++) {
         const record = data[i];
-        if (!record || typeof record !== 'object') {
+        if (!record || typeof record !== "object") {
           throw new Error(`Record at index ${i} is not a valid object`);
         }
-        
+
         const recordColumns = Object.keys(record);
-        if (recordColumns.length !== columns.length ||
-            !columns.every(col => recordColumns.includes(col))) {
-          throw new Error(`Record at index ${i} has different structure than the first record`);
+        if (
+          recordColumns.length !== columns.length ||
+          !columns.every((col) => recordColumns.includes(col))
+        ) {
+          throw new Error(
+            `Record at index ${i} has different structure than the first record`,
+          );
         }
       }
 
       // Build SQL query using VALUES clause for bulk insert
-      const columnNames = columns.map(col => `\`${col}\``).join(', ');
-      const placeholders = columns.map(() => '?').join(', ');
-      const valuesPlaceholders = data.map(() => `(${placeholders})`).join(', ');
-      
+      // Note: Column names should already be validated by the caller (implementation.ts)
+      // But we still escape them with backticks for safety
+      const columnNames = columns
+        .map((col) => {
+          // Basic sanitization - remove any backticks to prevent injection
+          const sanitized = col.replace(/`/g, "");
+          return `\`${sanitized}\``;
+        })
+        .join(", ");
+      const placeholders = columns.map(() => "?").join(", ");
+      const valuesPlaceholders = data.map(() => `(${placeholders})`).join(", ");
+
       const sql = `INSERT INTO \`${table}\` (${columnNames}) VALUES ${valuesPlaceholders}`;
-      
+
       // Flatten all values
       const allValues: any[] = [];
       for (const record of data) {
@@ -222,16 +238,16 @@ export class DatabaseManager {
       logger.debug(`Executing bulk insert: ${sql}`, {
         table,
         recordCount: data.length,
-        columnCount: columns.length
+        columnCount: columns.length,
       });
 
       const [result] = await this.pool.execute(sql, allValues);
-      
+
       return {
         affectedRows: (result as any).affectedRows,
         insertId: (result as any).insertId,
         recordCount: data.length,
-        message: `Successfully inserted ${data.length} records into ${table}`
+        message: `Successfully inserted ${data.length} records into ${table}`,
       };
     } catch (error) {
       logger.error(`Bulk insert failed for table ${table}:`, error);
@@ -242,28 +258,30 @@ export class DatabaseManager {
   async close(): Promise<void> {
     try {
       await this.pool.end();
-      logger.info('Database pool closed successfully');
+      logger.info("Database pool closed successfully");
     } catch (error) {
-      logger.error('Error closing database pool:', error);
+      logger.error("Error closing database pool:", error);
       throw error;
     }
   }
 
   private formatDatabaseError(error: any): Error {
-    if (error.code === 'ER_ACCESS_DENIED_ERROR') {
-      return new Error('Database access denied. Check credentials.');
-    } else if (error.code === 'ER_BAD_DB_ERROR') {
+    if (error.code === "ER_ACCESS_DENIED_ERROR") {
+      return new Error("Database access denied. Check credentials.");
+    } else if (error.code === "ER_BAD_DB_ERROR") {
       return new Error(`Database '${this.config.database}' does not exist.`);
-    } else if (error.code === 'ECONNREFUSED') {
-      return new Error(`Connection refused to ${this.config.host}:${this.config.port}`);
-    } else if (error.code === 'ER_NO_SUCH_TABLE') {
-      return new Error('Table does not exist.');
-    } else if (error.code === 'ER_DUP_ENTRY') {
-      return new Error('Duplicate entry. Record already exists.');
-    } else if (error.code === 'ER_PARSE_ERROR') {
-      return new Error('SQL syntax error. Please check your query.');
+    } else if (error.code === "ECONNREFUSED") {
+      return new Error(
+        `Connection refused to ${this.config.host}:${this.config.port}`,
+      );
+    } else if (error.code === "ER_NO_SUCH_TABLE") {
+      return new Error("Table does not exist.");
+    } else if (error.code === "ER_DUP_ENTRY") {
+      return new Error("Duplicate entry. Record already exists.");
+    } else if (error.code === "ER_PARSE_ERROR") {
+      return new Error("SQL syntax error. Please check your query.");
     }
-    
+
     return new Error(`Database error: ${error.message}`);
   }
 

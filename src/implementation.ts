@@ -1,22 +1,22 @@
-import { MySQLMCPServer, MCPServerConfig } from './server.js';
-import { DatabaseManager } from './database.js';
-import * as winston from 'winston';
+import { MySQLMCPServer, MCPServerConfig } from "./server.js";
+import { DatabaseManager } from "./database.js";
+import * as winston from "winston";
 
 const logger = winston.createLogger({
-  level: 'info',
+  level: "info",
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format.errors({ stack: true }),
-    winston.format.json()
+    winston.format.json(),
   ),
   transports: [
     new winston.transports.Console({
       format: winston.format.combine(
         winston.format.colorize(),
-        winston.format.simple()
-      )
-    })
-  ]
+        winston.format.simple(),
+      ),
+    }),
+  ],
 });
 
 export class MySQLMCPImplementation extends MySQLMCPServer {
@@ -30,53 +30,64 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
   // SQL Injection Prevention Utilities
   private sanitizeIdentifier(identifier: string): string {
     // Remove any characters that aren't alphanumeric or underscore
-    return identifier.replace(/[^a-zA-Z0-9_]/g, '');
+    return identifier.replace(/[^a-zA-Z0-9_]/g, "");
   }
 
   private validateTableName(table: string): void {
-    if (!table || typeof table !== 'string') {
-      throw new Error('Invalid table name');
+    if (!table || typeof table !== "string") {
+      throw new Error("Invalid table name");
     }
-    
+
     const sanitized = this.sanitizeIdentifier(table);
     if (sanitized !== table) {
-      throw new Error('Invalid table name: contains illegal characters');
+      throw new Error("Invalid table name: contains illegal characters");
     }
   }
 
   private validateColumnName(column: string): void {
-    if (!column || typeof column !== 'string') {
-      throw new Error('Invalid column name');
+    if (!column || typeof column !== "string") {
+      throw new Error("Invalid column name");
     }
-    
+
     const sanitized = this.sanitizeIdentifier(column);
     if (sanitized !== column) {
-      throw new Error('Invalid column name: contains illegal characters');
+      throw new Error("Invalid column name: contains illegal characters");
     }
   }
 
   // Schema Modification Security and Validation
-  private validateSchemaChangeSafety(operation: string, tableName: string, columnName?: string): void {
+  private validateSchemaChangeSafety(
+    operation: string,
+    tableName: string,
+    columnName?: string,
+  ): void {
     // Prevent schema modifications on system tables
-    const systemTables = ['mysql', 'information_schema', 'performance_schema', 'sys'];
+    const systemTables = [
+      "mysql",
+      "information_schema",
+      "performance_schema",
+      "sys",
+    ];
     if (systemTables.includes(tableName.toLowerCase())) {
-      throw new Error(`Schema modifications are not allowed on system table '${tableName}'`);
+      throw new Error(
+        `Schema modifications are not allowed on system table '${tableName}'`,
+      );
     }
 
     // Additional safety checks based on operation type
     switch (operation) {
-      case 'dropColumn':
+      case "dropColumn":
         if (!columnName) {
-          throw new Error('Column name is required for dropColumn operation');
+          throw new Error("Column name is required for dropColumn operation");
         }
         // Warn about potential data loss but allow it (user should be aware)
         break;
-      case 'dropTable':
+      case "dropTable":
         // This is a destructive operation, ensure user is aware
         break;
-      case 'modifyColumn':
+      case "modifyColumn":
         if (!columnName) {
-          throw new Error('Column name is required for modifyColumn operation');
+          throw new Error("Column name is required for modifyColumn operation");
         }
         break;
     }
@@ -84,32 +95,65 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
 
   private validateColumnType(dataType: string): void {
     const allowedTypes = [
-      'INT', 'INTEGER', 'BIGINT', 'SMALLINT', 'TINYINT', 'MEDIUMINT',
-      'DECIMAL', 'NUMERIC', 'FLOAT', 'DOUBLE', 'REAL',
-      'CHAR', 'VARCHAR', 'TEXT', 'TINYTEXT', 'MEDIUMTEXT', 'LONGTEXT',
-      'DATE', 'TIME', 'DATETIME', 'TIMESTAMP', 'YEAR',
-      'BOOLEAN', 'BOOL',
-      'BINARY', 'VARBINARY', 'BLOB', 'TINYBLOB', 'MEDIUMBLOB', 'LONGBLOB',
-      'ENUM', 'SET', 'JSON'
+      "INT",
+      "INTEGER",
+      "BIGINT",
+      "SMALLINT",
+      "TINYINT",
+      "MEDIUMINT",
+      "DECIMAL",
+      "NUMERIC",
+      "FLOAT",
+      "DOUBLE",
+      "REAL",
+      "CHAR",
+      "VARCHAR",
+      "TEXT",
+      "TINYTEXT",
+      "MEDIUMTEXT",
+      "LONGTEXT",
+      "DATE",
+      "TIME",
+      "DATETIME",
+      "TIMESTAMP",
+      "YEAR",
+      "BOOLEAN",
+      "BOOL",
+      "BINARY",
+      "VARBINARY",
+      "BLOB",
+      "TINYBLOB",
+      "MEDIUMBLOB",
+      "LONGBLOB",
+      "ENUM",
+      "SET",
+      "JSON",
     ];
 
     // Pattern for basic data type validation (e.g., VARCHAR(255), INT, DECIMAL(10,2), ENUM('a','b'))
-    const typePattern = /^([A-Z]+)(\(\d+(\,\d+)?\)|\([^)]+\))?(\s+(UNSIGNED|SIGNED|ZEROFILL))*$/i;
-    
+    const typePattern =
+      /^([A-Z]+)(\(\d+(\,\d+)?\)|\([^)]+\))?(\s+(UNSIGNED|SIGNED|ZEROFILL))*$/i;
+
     if (!typePattern.test(dataType.trim().toUpperCase())) {
-      throw new Error(`Invalid column type format: '${dataType}'. Use standard MySQL data types like VARCHAR(255), INT, DECIMAL(10,2), etc.`);
+      throw new Error(
+        `Invalid column type format: '${dataType}'. Use standard MySQL data types like VARCHAR(255), INT, DECIMAL(10,2), etc.`,
+      );
     }
 
-    const baseType = dataType.trim().split('(')[0].split(' ')[0].toUpperCase();
+    const baseType = dataType.trim().split("(")[0].split(" ")[0].toUpperCase();
     if (!allowedTypes.includes(baseType)) {
-      throw new Error(`Unsupported column type: '${baseType}'. Allowed types: ${allowedTypes.join(', ')}`);
+      throw new Error(
+        `Unsupported column type: '${baseType}'. Allowed types: ${allowedTypes.join(", ")}`,
+      );
     }
   }
 
   private validateIndexType(indexType: string): void {
-    const allowedTypes = ['BTREE', 'HASH', 'FULLTEXT', 'SPATIAL'];
+    const allowedTypes = ["BTREE", "HASH", "FULLTEXT", "SPATIAL"];
     if (!allowedTypes.includes(indexType.toUpperCase())) {
-      throw new Error(`Invalid index type: '${indexType}'. Allowed types: ${allowedTypes.join(', ')}`);
+      throw new Error(
+        `Invalid index type: '${indexType}'. Allowed types: ${allowedTypes.join(", ")}`,
+      );
     }
   }
 
@@ -117,23 +161,30 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
     let definition = `\`${this.sanitizeIdentifier(column.name)}\` ${column.type}`;
 
     if (column.nullable === false) {
-      definition += ' NOT NULL';
+      definition += " NOT NULL";
     } else if (column.nullable === true) {
-      definition += ' NULL';
+      definition += " NULL";
     }
 
     if (column.default !== undefined) {
       if (column.default === null) {
-        definition += ' DEFAULT NULL';
-      } else if (typeof column.default === 'string') {
-        definition += ` DEFAULT '${column.default.replace(/'/g, "''")}'`;
+        definition += " DEFAULT NULL";
+      } else if (typeof column.default === "string") {
+        // Check if it's a MySQL keyword/function (e.g., CURRENT_TIMESTAMP, NOW())
+        const mysqlKeywords =
+          /^(CURRENT_TIMESTAMP|NOW\(\)|CURRENT_DATE|CURRENT_TIME|NULL)$/i;
+        if (mysqlKeywords.test(column.default.trim())) {
+          definition += ` DEFAULT ${column.default}`;
+        } else {
+          definition += ` DEFAULT '${column.default.replace(/'/g, "''")}'`;
+        }
       } else {
         definition += ` DEFAULT ${column.default}`;
       }
     }
 
     if (column.autoIncrement) {
-      definition += ' AUTO_INCREMENT';
+      definition += " AUTO_INCREMENT";
     }
 
     if (column.comment) {
@@ -144,15 +195,15 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
   }
 
   private validateWhereConditions(where: any): void {
-    if (!where || typeof where !== 'object') {
-      throw new Error('Invalid where conditions');
+    if (!where || typeof where !== "object") {
+      throw new Error("Invalid where conditions");
     }
 
     // Check for SQL injection patterns in values
     for (const [key, value] of Object.entries(where)) {
       this.validateColumnName(key);
-      
-      if (typeof value === 'string') {
+
+      if (typeof value === "string") {
         // Basic SQL injection pattern detection
         const dangerousPatterns = [
           /(\b(union|select|insert|update|delete|drop|create|alter|exec|execute|script|declare|truncate)\b)/i,
@@ -162,7 +213,9 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
 
         for (const pattern of dangerousPatterns) {
           if (pattern.test(value)) {
-            throw new Error(`Potential SQL injection detected in where condition for column '${key}'`);
+            throw new Error(
+              `Potential SQL injection detected in where condition for column '${key}'`,
+            );
           }
         }
       }
@@ -170,8 +223,8 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
   }
 
   private validateData(data: any): void {
-    if (!data || typeof data !== 'object') {
-      throw new Error('Invalid data object');
+    if (!data || typeof data !== "object") {
+      throw new Error("Invalid data object");
     }
 
     for (const key of Object.keys(data)) {
@@ -181,17 +234,17 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
 
   private buildWhereClause(where: any): { clause: string; params: any[] } {
     this.validateWhereConditions(where);
-    
+
     const conditions: string[] = [];
     const params: any[] = [];
 
     for (const [key, value] of Object.entries(where)) {
       const sanitizedKey = this.sanitizeIdentifier(key);
-      
+
       if (value === null) {
         conditions.push(`\`${sanitizedKey}\` IS NULL`);
       } else if (Array.isArray(value)) {
-        const placeholders = value.map(() => '?').join(',');
+        const placeholders = value.map(() => "?").join(",");
         conditions.push(`\`${sanitizedKey}\` IN (${placeholders})`);
         params.push(...value);
       } else {
@@ -201,7 +254,7 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
     }
 
     return {
-      clause: conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '',
+      clause: conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "",
       params,
     };
   }
@@ -211,35 +264,38 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
     try {
       const databaseName = this.getDatabaseConfig().database;
       if (!databaseName) {
-        throw new Error('Database name is not configured');
+        throw new Error("Database name is not configured");
       }
 
       if (args.table) {
         this.validateTableName(args.table);
-        
+
         // List columns for specific table
         const query = `
-          SELECT 
+          SELECT
             COLUMN_NAME as name,
             DATA_TYPE as type,
             IS_NULLABLE as nullable,
             COLUMN_DEFAULT as default_value,
             COLUMN_KEY as key_type,
             EXTRA as extra
-          FROM INFORMATION_SCHEMA.COLUMNS 
+          FROM INFORMATION_SCHEMA.COLUMNS
           WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
           ORDER BY ORDINAL_POSITION
         `;
-        
-        const columns = await this.dbManager.query(query, [databaseName, args.table]);
-        
+
+        const columns = await this.dbManager.query(query, [
+          databaseName,
+          args.table,
+        ]);
+
         return {
           success: true,
           table: args.table,
           columns: columns.map((col: any) => ({
             name: col.name,
             type: col.type,
-            nullable: col.nullable === 'YES',
+            nullable: col.nullable === "YES",
             default: col.default_value,
             key: col.key_type,
             extra: col.extra,
@@ -249,13 +305,13 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
         // List all tables
         const query = `
           SELECT TABLE_NAME as name, TABLE_ROWS as \`rows\`, TABLE_COMMENT as comment
-          FROM INFORMATION_SCHEMA.TABLES 
+          FROM INFORMATION_SCHEMA.TABLES
           WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = 'BASE TABLE'
           ORDER BY TABLE_NAME
         `;
-        
+
         const tables = await this.dbManager.query(query, [databaseName]);
-        
+
         return {
           success: true,
           tables: tables.map((table: any) => ({
@@ -266,7 +322,7 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
         };
       }
     } catch (error) {
-      logger.error('List operation failed:', error);
+      logger.error("List operation failed:", error);
       throw error;
     }
   }
@@ -274,12 +330,16 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
   protected async handleRead(args: any): Promise<any> {
     try {
       this.validateTableName(args.table);
-      
-      let columns = '*';
-      if (args.columns && Array.isArray(args.columns) && args.columns.length > 0) {
+
+      let columns = "*";
+      if (
+        args.columns &&
+        Array.isArray(args.columns) &&
+        args.columns.length > 0
+      ) {
         // Validate all column names
         args.columns.forEach((col: string) => this.validateColumnName(col));
-        columns = args.columns.map((col: string) => `\`${col}\``).join(', ');
+        columns = args.columns.map((col: string) => `\`${col}\``).join(", ");
       }
 
       let sql = `SELECT ${columns} FROM \`${args.table}\``;
@@ -287,7 +347,9 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
 
       // Add WHERE clause
       if (args.where) {
-        const { clause, params: whereParams } = this.buildWhereClause(args.where);
+        const { clause, params: whereParams } = this.buildWhereClause(
+          args.where,
+        );
         if (clause) {
           sql += ` ${clause}`;
           params.push(...whereParams);
@@ -296,18 +358,29 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
 
       // Add ORDER BY clause
       if (args.orderBy) {
-        // Basic validation for order by
-        const orderBy = args.orderBy.replace(/[^a-zA-Z0-9_,\s]/g, '');
-        sql += ` ORDER BY ${orderBy}`;
+        // Validate and sanitize ORDER BY clause
+        const orderByParts = args.orderBy.split(",").map((part: string) => {
+          const trimmed = part.trim();
+          const match = trimmed.match(/^([a-zA-Z0-9_]+)(\s+(ASC|DESC))?$/i);
+          if (!match) {
+            throw new Error(`Invalid ORDER BY clause: '${trimmed}'`);
+          }
+          const columnName = match[1];
+          const direction = match[3] ? ` ${match[3].toUpperCase()}` : "";
+          this.validateColumnName(columnName);
+          return `\`${columnName}\`${direction}`;
+        });
+        sql += ` ORDER BY ${orderByParts.join(", ")}`;
       }
 
       // Add LIMIT and OFFSET
       if (args.limit) {
         const limit = parseInt(args.limit);
-        if (limit > 0 && limit <= 10000) { // Security: max limit
+        if (limit > 0 && limit <= 10000) {
+          // Security: max limit
           sql += ` LIMIT ${limit}`;
         } else {
-          throw new Error('Invalid limit value. Must be between 1 and 10000.');
+          throw new Error("Invalid limit value. Must be between 1 and 10000.");
         }
       }
 
@@ -316,12 +389,12 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
         if (offset >= 0) {
           sql += ` OFFSET ${offset}`;
         } else {
-          throw new Error('Invalid offset value. Must be non-negative.');
+          throw new Error("Invalid offset value. Must be non-negative.");
         }
       }
 
       const results = await this.dbManager.query(sql, params);
-      
+
       return {
         success: true,
         table: args.table,
@@ -329,7 +402,7 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
         data: results,
       };
     } catch (error) {
-      logger.error('Read operation failed:', error);
+      logger.error("Read operation failed:", error);
       throw error;
     }
   }
@@ -341,13 +414,13 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
 
       const columns = Object.keys(args.data);
       const values = Object.values(args.data);
-      const placeholders = columns.map(() => '?').join(', ');
-      const columnNames = columns.map(col => `\`${col}\``).join(', ');
+      const placeholders = columns.map(() => "?").join(", ");
+      const columnNames = columns.map((col) => `\`${col}\``).join(", ");
 
       const sql = `INSERT INTO \`${args.table}\` (${columnNames}) VALUES (${placeholders})`;
-      
+
       const result = await this.dbManager.query(sql, values);
-      
+
       return {
         success: true,
         table: args.table,
@@ -355,7 +428,7 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
         affectedRows: result.affectedRows,
       };
     } catch (error) {
-      logger.error('Create operation failed:', error);
+      logger.error("Create operation failed:", error);
       throw error;
     }
   }
@@ -366,22 +439,25 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
       this.validateData(args.data);
 
       if (!args.where) {
-        throw new Error('WHERE clause is required for UPDATE operations to prevent accidental updates');
+        throw new Error(
+          "WHERE clause is required for UPDATE operations to prevent accidental updates",
+        );
       }
 
       const setClause = Object.keys(args.data)
-        .map(col => `\`${col}\` = ?`)
-        .join(', ');
-      
+        .map((col) => `\`${col}\` = ?`)
+        .join(", ");
+
       const values = Object.values(args.data);
-      
-      const { clause: whereClause, params: whereParams } = this.buildWhereClause(args.where);
-      
+
+      const { clause: whereClause, params: whereParams } =
+        this.buildWhereClause(args.where);
+
       const sql = `UPDATE \`${args.table}\` SET ${setClause} ${whereClause}`;
       const params = [...values, ...whereParams];
-      
+
       const result = await this.dbManager.query(sql, params);
-      
+
       return {
         success: true,
         table: args.table,
@@ -389,7 +465,7 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
         changedRows: result.changedRows,
       };
     } catch (error) {
-      logger.error('Update operation failed:', error);
+      logger.error("Update operation failed:", error);
       throw error;
     }
   }
@@ -397,14 +473,18 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
   protected async handleAddColumn(args: any): Promise<any> {
     try {
       this.validateTableName(args.table);
-      this.validateSchemaChangeSafety('addColumn', args.table, args.column?.name);
+      this.validateSchemaChangeSafety(
+        "addColumn",
+        args.table,
+        args.column?.name,
+      );
 
-      if (!args.column || typeof args.column !== 'object') {
-        throw new Error('Column definition is required');
+      if (!args.column || typeof args.column !== "object") {
+        throw new Error("Column definition is required");
       }
 
       if (!args.column.name || !args.column.type) {
-        throw new Error('Column name and type are required');
+        throw new Error("Column name and type are required");
       }
 
       this.validateColumnName(args.column.name);
@@ -417,22 +497,22 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
         if (args.position.after) {
           sql += ` AFTER \`${this.sanitizeIdentifier(args.position.after)}\``;
         } else if (args.position.first) {
-          sql += ' FIRST';
+          sql += " FIRST";
         }
       }
 
       const result = await this.dbManager.query(sql);
-      
+
       return {
         success: true,
         table: args.table,
         column: args.column.name,
-        operation: 'addColumn',
+        operation: "addColumn",
         message: `Successfully added column '${args.column.name}' to table '${args.table}'`,
         affectedRows: result.affectedRows || 0,
       };
     } catch (error) {
-      logger.error('Add column operation failed:', error);
+      logger.error("Add column operation failed:", error);
       throw error;
     }
   }
@@ -441,32 +521,37 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
     try {
       this.validateTableName(args.table);
       this.validateColumnName(args.column);
-      this.validateSchemaChangeSafety('dropColumn', args.table, args.column);
+      this.validateSchemaChangeSafety("dropColumn", args.table, args.column);
 
       // Check if column exists
-      const existingColumns = await this.dbManager.query(`
-        SELECT COLUMN_NAME 
-        FROM INFORMATION_SCHEMA.COLUMNS 
+      const existingColumns = await this.dbManager.query(
+        `
+        SELECT COLUMN_NAME
+        FROM INFORMATION_SCHEMA.COLUMNS
         WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?
-      `, [this.getDatabaseConfig().database, args.table, args.column]);
+      `,
+        [this.getDatabaseConfig().database, args.table, args.column],
+      );
 
       if (existingColumns.length === 0) {
-        throw new Error(`Column '${args.column}' does not exist in table '${args.table}'`);
+        throw new Error(
+          `Column '${args.column}' does not exist in table '${args.table}'`,
+        );
       }
 
       const sql = `ALTER TABLE \`${args.table}\` DROP COLUMN \`${args.column}\``;
       const result = await this.dbManager.query(sql);
-      
+
       return {
         success: true,
         table: args.table,
         column: args.column,
-        operation: 'dropColumn',
+        operation: "dropColumn",
         message: `Successfully dropped column '${args.column}' from table '${args.table}'`,
         affectedRows: result.affectedRows || 0,
       };
     } catch (error) {
-      logger.error('Drop column operation failed:', error);
+      logger.error("Drop column operation failed:", error);
       throw error;
     }
   }
@@ -475,32 +560,32 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
     try {
       this.validateTableName(args.table);
       this.validateColumnName(args.column);
-      this.validateSchemaChangeSafety('modifyColumn', args.table, args.column);
+      this.validateSchemaChangeSafety("modifyColumn", args.table, args.column);
 
-      if (!args.newDefinition || typeof args.newDefinition !== 'object') {
-        throw new Error('New column definition is required');
+      if (!args.newDefinition || typeof args.newDefinition !== "object") {
+        throw new Error("New column definition is required");
       }
 
       this.validateColumnType(args.newDefinition.type);
 
       const columnDefinition = this.buildColumnDefinition({
         name: args.column,
-        ...args.newDefinition
+        ...args.newDefinition,
       });
 
       const sql = `ALTER TABLE \`${args.table}\` MODIFY COLUMN ${columnDefinition}`;
       const result = await this.dbManager.query(sql);
-      
+
       return {
         success: true,
         table: args.table,
         column: args.column,
-        operation: 'modifyColumn',
+        operation: "modifyColumn",
         message: `Successfully modified column '${args.column}' in table '${args.table}'`,
         affectedRows: result.affectedRows || 0,
       };
     } catch (error) {
-      logger.error('Modify column operation failed:', error);
+      logger.error("Modify column operation failed:", error);
       throw error;
     }
   }
@@ -510,44 +595,86 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
       this.validateTableName(args.table);
       this.validateColumnName(args.oldName);
       this.validateColumnName(args.newName);
-      this.validateSchemaChangeSafety('renameColumn', args.table, args.oldName);
+      this.validateSchemaChangeSafety("renameColumn", args.table, args.oldName);
 
-      // Check if old column exists
-      const existingColumns = await this.dbManager.query(`
-        SELECT COLUMN_NAME 
-        FROM INFORMATION_SCHEMA.COLUMNS 
+      // Check if old column exists and get its definition
+      const existingColumns = await this.dbManager.query(
+        `
+        SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT, EXTRA, COLUMN_COMMENT
+        FROM INFORMATION_SCHEMA.COLUMNS
         WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?
-      `, [this.getDatabaseConfig().database, args.table, args.oldName]);
+      `,
+        [this.getDatabaseConfig().database, args.table, args.oldName],
+      );
 
       if (existingColumns.length === 0) {
-        throw new Error(`Column '${args.oldName}' does not exist in table '${args.table}'`);
+        throw new Error(
+          `Column '${args.oldName}' does not exist in table '${args.table}'`,
+        );
       }
 
       // Check if new column name already exists
-      const newColumnExists = await this.dbManager.query(`
-        SELECT COLUMN_NAME 
-        FROM INFORMATION_SCHEMA.COLUMNS 
+      const newColumnExists = await this.dbManager.query(
+        `
+        SELECT COLUMN_NAME
+        FROM INFORMATION_SCHEMA.COLUMNS
         WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?
-      `, [this.getDatabaseConfig().database, args.table, args.newName]);
+      `,
+        [this.getDatabaseConfig().database, args.table, args.newName],
+      );
 
       if (newColumnExists.length > 0) {
-        throw new Error(`Column '${args.newName}' already exists in table '${args.table}'`);
+        throw new Error(
+          `Column '${args.newName}' already exists in table '${args.table}'`,
+        );
       }
 
-      const sql = `ALTER TABLE \`${args.table}\` CHANGE COLUMN \`${args.oldName}\` \`${args.newName}\` ${args.newDefinition || args.oldName}`;
+      // Build column definition from existing column if not provided
+      let columnDefinition = args.newDefinition;
+      if (!columnDefinition) {
+        const col = existingColumns[0];
+        columnDefinition = col.COLUMN_TYPE;
+
+        if (col.IS_NULLABLE === "NO") {
+          columnDefinition += " NOT NULL";
+        } else {
+          columnDefinition += " NULL";
+        }
+
+        if (col.COLUMN_DEFAULT !== null) {
+          if (
+            col.COLUMN_DEFAULT === "CURRENT_TIMESTAMP" ||
+            col.COLUMN_DEFAULT.includes("CURRENT_TIMESTAMP")
+          ) {
+            columnDefinition += ` DEFAULT ${col.COLUMN_DEFAULT}`;
+          } else {
+            columnDefinition += ` DEFAULT '${col.COLUMN_DEFAULT.replace(/'/g, "''")}'`;
+          }
+        }
+
+        if (col.EXTRA) {
+          columnDefinition += ` ${col.EXTRA}`;
+        }
+
+        if (col.COLUMN_COMMENT) {
+          columnDefinition += ` COMMENT '${col.COLUMN_COMMENT.replace(/'/g, "''")}'`;
+        }
+      }
+
+      const sql = `ALTER TABLE \`${args.table}\` CHANGE COLUMN \`${args.oldName}\` \`${args.newName}\` ${columnDefinition}`;
       const result = await this.dbManager.query(sql);
-      
+
       return {
         success: true,
         table: args.table,
         oldName: args.oldName,
         newName: args.newName,
-        operation: 'renameColumn',
+        operation: "renameColumn",
         message: `Successfully renamed column '${args.oldName}' to '${args.newName}' in table '${args.table}'`,
         affectedRows: result.affectedRows || 0,
       };
     } catch (error) {
-      logger.error('Rename column operation failed:', error);
+      logger.error("Rename column operation failed:", error);
       throw error;
     }
   }
@@ -556,25 +683,31 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
     try {
       this.validateTableName(args.oldName);
       this.validateTableName(args.newName);
-      this.validateSchemaChangeSafety('renameTable', args.oldName);
+      this.validateSchemaChangeSafety("renameTable", args.oldName);
 
       // Check if old table exists
-      const existingTables = await this.dbManager.query(`
-        SELECT TABLE_NAME 
-        FROM INFORMATION_SCHEMA.TABLES 
+      const existingTables = await this.dbManager.query(
+        `
+        SELECT TABLE_NAME
+        FROM INFORMATION_SCHEMA.TABLES
         WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-      `, [this.getDatabaseConfig().database, args.oldName]);
+      `,
+        [this.getDatabaseConfig().database, args.oldName],
+      );
 
       if (existingTables.length === 0) {
         throw new Error(`Table '${args.oldName}' does not exist`);
       }
 
       // Check if new table name already exists
-      const newTableExists = await this.dbManager.query(`
-        SELECT TABLE_NAME 
-        FROM INFORMATION_SCHEMA.TABLES 
+      const newTableExists = await this.dbManager.query(
+        `
+        SELECT TABLE_NAME
+        FROM INFORMATION_SCHEMA.TABLES
         WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-      `, [this.getDatabaseConfig().database, args.newName]);
+      `,
+        [this.getDatabaseConfig().database, args.newName],
+      );
 
       if (newTableExists.length > 0) {
         throw new Error(`Table '${args.newName}' already exists`);
@@ -582,17 +715,17 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
 
       const sql = `RENAME TABLE \`${args.oldName}\` TO \`${args.newName}\``;
       const result = await this.dbManager.query(sql);
-      
+
       return {
         success: true,
         oldName: args.oldName,
         newName: args.newName,
-        operation: 'renameTable',
+        operation: "renameTable",
         message: `Successfully renamed table '${args.oldName}' to '${args.newName}'`,
         affectedRows: result.affectedRows || 0,
       };
     } catch (error) {
-      logger.error('Rename table operation failed:', error);
+      logger.error("Rename table operation failed:", error);
       throw error;
     }
   }
@@ -600,10 +733,15 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
   protected async handleAddIndex(args: any): Promise<any> {
     try {
       this.validateTableName(args.table);
-      this.validateSchemaChangeSafety('addIndex', args.table);
+      this.validateSchemaChangeSafety("addIndex", args.table);
 
-      if (!args.name || !args.columns || !Array.isArray(args.columns) || args.columns.length === 0) {
-        throw new Error('Index name and columns are required');
+      if (
+        !args.name ||
+        !args.columns ||
+        !Array.isArray(args.columns) ||
+        args.columns.length === 0
+      ) {
+        throw new Error("Index name and columns are required");
       }
 
       // Validate all column names
@@ -613,30 +751,32 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
         this.validateIndexType(args.type);
       }
 
-      let indexType = '';
+      let indexType = "";
       if (args.type) {
         indexType = `${args.type} INDEX`;
       } else if (args.unique) {
-        indexType = 'UNIQUE INDEX';
+        indexType = "UNIQUE INDEX";
       } else {
-        indexType = 'INDEX';
+        indexType = "INDEX";
       }
 
-      const columnList = args.columns.map((col: string) => `\`${this.sanitizeIdentifier(col)}\``).join(', ');
+      const columnList = args.columns
+        .map((col: string) => `\`${this.sanitizeIdentifier(col)}\``)
+        .join(", ");
       const sql = `CREATE ${indexType} \`${this.sanitizeIdentifier(args.name)}\` ON \`${args.table}\` (${columnList})`;
-      
+
       const result = await this.dbManager.query(sql);
-      
+
       return {
         success: true,
         table: args.table,
         index: args.name,
-        operation: 'addIndex',
+        operation: "addIndex",
         message: `Successfully added index '${args.name}' to table '${args.table}'`,
         affectedRows: result.affectedRows || 0,
       };
     } catch (error) {
-      logger.error('Add index operation failed:', error);
+      logger.error("Add index operation failed:", error);
       throw error;
     }
   }
@@ -644,36 +784,41 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
   protected async handleDropIndex(args: any): Promise<any> {
     try {
       this.validateTableName(args.table);
-      this.validateSchemaChangeSafety('dropIndex', args.table);
+      this.validateSchemaChangeSafety("dropIndex", args.table);
 
       if (!args.name) {
-        throw new Error('Index name is required');
+        throw new Error("Index name is required");
       }
 
       // Check if index exists
-      const existingIndexes = await this.dbManager.query(`
-        SELECT INDEX_NAME 
-        FROM INFORMATION_SCHEMA.STATISTICS 
+      const existingIndexes = await this.dbManager.query(
+        `
+        SELECT INDEX_NAME
+        FROM INFORMATION_SCHEMA.STATISTICS
         WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND INDEX_NAME = ?
-      `, [this.getDatabaseConfig().database, args.table, args.name]);
+      `,
+        [this.getDatabaseConfig().database, args.table, args.name],
+      );
 
       if (existingIndexes.length === 0) {
-        throw new Error(`Index '${args.name}' does not exist on table '${args.table}'`);
+        throw new Error(
+          `Index '${args.name}' does not exist on table '${args.table}'`,
+        );
       }
 
       const sql = `DROP INDEX \`${this.sanitizeIdentifier(args.name)}\` ON \`${args.table}\``;
       const result = await this.dbManager.query(sql);
-      
+
       return {
         success: true,
         table: args.table,
         index: args.name,
-        operation: 'dropIndex',
+        operation: "dropIndex",
         message: `Successfully dropped index '${args.name}' from table '${args.table}'`,
         affectedRows: result.affectedRows || 0,
       };
     } catch (error) {
-      logger.error('Drop index operation failed:', error);
+      logger.error("Drop index operation failed:", error);
       throw error;
     }
   }
@@ -683,22 +828,25 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
       this.validateTableName(args.table);
 
       if (!args.where) {
-        throw new Error('WHERE clause is required for DELETE operations to prevent accidental deletions');
+        throw new Error(
+          "WHERE clause is required for DELETE operations to prevent accidental deletions",
+        );
       }
 
-      const { clause: whereClause, params: whereParams } = this.buildWhereClause(args.where);
-      
+      const { clause: whereClause, params: whereParams } =
+        this.buildWhereClause(args.where);
+
       const sql = `DELETE FROM \`${args.table}\` ${whereClause}`;
-      
+
       const result = await this.dbManager.query(sql, whereParams);
-      
+
       return {
         success: true,
         table: args.table,
         affectedRows: result.affectedRows,
       };
     } catch (error) {
-      logger.error('Delete operation failed:', error);
+      logger.error("Delete operation failed:", error);
       throw error;
     }
   }
@@ -707,9 +855,12 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
     try {
       // Security: Only allow read operations by default
       if (!args.allowWrite) {
-        const writeKeywords = /\b(insert|update|delete|drop|create|alter|truncate|exec|execute)\b/i;
+        const writeKeywords =
+          /\b(insert|update|delete|drop|create|alter|truncate|exec|execute)\b/i;
         if (writeKeywords.test(args.query)) {
-          throw new Error('Write operations are not allowed. Set allowWrite: true to enable.');
+          throw new Error(
+            "Write operations are not allowed. Set allowWrite: true to enable.",
+          );
         }
       }
 
@@ -722,12 +873,14 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
 
       for (const pattern of dangerousPatterns) {
         if (pattern.test(args.query)) {
-          throw new Error('Potentially dangerous SQL patterns detected in query.');
+          throw new Error(
+            "Potentially dangerous SQL patterns detected in query.",
+          );
         }
       }
 
       const results = await this.dbManager.query(args.query, args.params || []);
-      
+
       return {
         success: true,
         query: args.query,
@@ -735,7 +888,7 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
         count: Array.isArray(results) ? results.length : 0,
       };
     } catch (error) {
-      logger.error('Execute operation failed:', error);
+      logger.error("Execute operation failed:", error);
       throw error;
     }
   }
@@ -743,72 +896,89 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
   protected async handleDDL(args: any): Promise<any> {
     try {
       // Validate DDL statement
-      const ddlKeywords = /\b(create|alter|drop|truncate)\s+(table|index|view|procedure|function|trigger)\b/i;
+      const ddlKeywords =
+        /\b(create|alter|drop|truncate)\s+(table|index|view|procedure|function|trigger)\b/i;
       if (!ddlKeywords.test(args.statement)) {
-        throw new Error('Invalid DDL statement. Only CREATE, ALTER, DROP, TRUNCATE operations are allowed.');
+        throw new Error(
+          "Invalid DDL statement. Only CREATE, ALTER, DROP, TRUNCATE operations are allowed.",
+        );
       }
 
       const result = await this.dbManager.query(args.statement);
-      
+
       return {
         success: true,
         statement: args.statement,
         affectedRows: result.affectedRows || 0,
       };
     } catch (error) {
-      logger.error('DDL operation failed:', error);
+      logger.error("DDL operation failed:", error);
       throw error;
     }
   }
 
   protected async handleTransaction(args: any): Promise<any> {
     try {
-      if (!args.operations || !Array.isArray(args.operations) || args.operations.length === 0) {
-        throw new Error('Transaction must contain at least one operation');
+      if (
+        !args.operations ||
+        !Array.isArray(args.operations) ||
+        args.operations.length === 0
+      ) {
+        throw new Error("Transaction must contain at least one operation");
       }
 
-      const queries: Array<{sql: string, params?: any[]}> = [];
+      const queries: Array<{ sql: string; params?: any[] }> = [];
 
       for (const operation of args.operations) {
         switch (operation.type) {
-          case 'create':
+          case "create":
             this.validateTableName(operation.table);
             this.validateData(operation.data);
-            
+
             const createColumns = Object.keys(operation.data);
             const createValues = Object.values(operation.data);
-            const createPlaceholders = createColumns.map(() => '?').join(', ');
-            const createColumnNames = createColumns.map(col => `\`${col}\``).join(', ');
-            
+            const createPlaceholders = createColumns.map(() => "?").join(", ");
+            const createColumnNames = createColumns
+              .map((col) => `\`${col}\``)
+              .join(", ");
+
             queries.push({
               sql: `INSERT INTO \`${operation.table}\` (${createColumnNames}) VALUES (${createPlaceholders})`,
               params: createValues,
             });
             break;
 
-          case 'bulk_insert':
+          case "bulk_insert":
             this.validateTableName(operation.table);
-            
-            if (!operation.data || !Array.isArray(operation.data) || operation.data.length === 0) {
-              throw new Error('Bulk insert data must be a non-empty array');
+
+            if (
+              !operation.data ||
+              !Array.isArray(operation.data) ||
+              operation.data.length === 0
+            ) {
+              throw new Error("Bulk insert data must be a non-empty array");
             }
 
             // Validate each record in the bulk data
             for (let i = 0; i < operation.data.length; i++) {
               const record = operation.data[i];
-              if (!record || typeof record !== 'object') {
+              if (!record || typeof record !== "object") {
                 throw new Error(`Record at index ${i} is not a valid object`);
               }
               this.validateData(record);
             }
 
             const bulkColumns = Object.keys(operation.data[0]);
-            const bulkColumnNames = bulkColumns.map(col => `\`${col}\``).join(', ');
-            const placeholders = bulkColumns.map(() => '?').join(', ');
-            const valuesPlaceholders = operation.data.map(() => `(${placeholders})`).join(', ');
-            
+            const bulkColumnNames = bulkColumns
+              .map((col) => `\`${col}\``)
+              .join(", ");
+            const placeholders = bulkColumns.map(() => "?").join(", ");
+            const valuesPlaceholders = operation.data
+              .map(() => `(${placeholders})`)
+              .join(", ");
+
             const sql = `INSERT INTO \`${operation.table}\` (${bulkColumnNames}) VALUES ${valuesPlaceholders}`;
-            
+
             // Flatten all values
             const allValues: any[] = [];
             for (const record of operation.data) {
@@ -816,55 +986,61 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
                 allValues.push(record[column]);
               }
             }
-            
+
             queries.push({
               sql,
               params: allValues,
             });
             break;
 
-          case 'update':
+          case "update":
             this.validateTableName(operation.table);
             this.validateData(operation.data);
-            
+
             if (!operation.where) {
-              throw new Error('WHERE clause required for UPDATE in transaction');
+              throw new Error(
+                "WHERE clause required for UPDATE in transaction",
+              );
             }
-            
+
             const setClause = Object.keys(operation.data)
-              .map(col => `\`${col}\` = ?`)
-              .join(', ');
+              .map((col) => `\`${col}\` = ?`)
+              .join(", ");
 
             const updateValues = Object.values(operation.data);
-            const { clause: updateWhereClause, params: updateWhereParams } = this.buildWhereClause(operation.where);
-            
+            const { clause: updateWhereClause, params: updateWhereParams } =
+              this.buildWhereClause(operation.where);
+
             queries.push({
               sql: `UPDATE \`${operation.table}\` SET ${setClause} ${updateWhereClause}`,
               params: [...updateValues, ...updateWhereParams],
             });
             break;
 
-          case 'delete':
+          case "delete":
             this.validateTableName(operation.table);
-            
+
             if (!operation.where) {
-              throw new Error('WHERE clause required for DELETE in transaction');
+              throw new Error(
+                "WHERE clause required for DELETE in transaction",
+              );
             }
-            
-            const { clause: deleteWhereClause, params: deleteWhereParams } = this.buildWhereClause(operation.where);
-            
+
+            const { clause: deleteWhereClause, params: deleteWhereParams } =
+              this.buildWhereClause(operation.where);
+
             queries.push({
               sql: `DELETE FROM \`${operation.table}\` ${deleteWhereClause}`,
               params: deleteWhereParams,
             });
             break;
 
-          case 'execute':
+          case "execute":
             // Additional validation for execute in transaction
             if (!operation.query) {
-              throw new Error('Query required for EXECUTE in transaction');
+              throw new Error("Query required for EXECUTE in transaction");
             }
-            
+
             queries.push({
               sql: operation.query,
               params: operation.params || [],
@@ -877,14 +1053,14 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
       }
 
       const results = await this.dbManager.transaction(queries);
-      
+
       return {
         success: true,
         operations: args.operations.length,
         results: results,
       };
     } catch (error) {
-      logger.error('Transaction operation failed:', error);
+      logger.error("Transaction operation failed:", error);
       throw error;
     }
   }
@@ -892,22 +1068,22 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
   protected async handleBulkInsert(args: any): Promise<any> {
     try {
       this.validateTableName(args.table);
-      
+
       if (!args.data || !Array.isArray(args.data) || args.data.length === 0) {
-        throw new Error('Bulk insert data must be a non-empty array');
+        throw new Error("Bulk insert data must be a non-empty array");
       }
 
       // Validate each record
       for (let i = 0; i < args.data.length; i++) {
         const record = args.data[i];
-        if (!record || typeof record !== 'object') {
+        if (!record || typeof record !== "object") {
           throw new Error(`Record at index ${i} is not a valid object`);
         }
         this.validateData(record);
       }
 
       const result = await this.dbManager.bulkInsert(args.table, args.data);
-      
+
       return {
         success: true,
         table: args.table,
@@ -917,7 +1093,7 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
         message: result.message,
       };
     } catch (error) {
-      logger.error('Bulk insert operation failed:', error);
+      logger.error("Bulk insert operation failed:", error);
       throw error;
     }
   }
@@ -930,13 +1106,15 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
       const limit = Math.min(args.limit || 50, 1000);
       const offset = args.offset || 0;
       const showSchema = args.showSchema !== false; // default true
-      const format = args.format || 'table';
-      const orderDirection = args.orderDirection || 'ASC';
+      const format = args.format || "table";
+      const orderDirection = args.orderDirection || "ASC";
 
       // Get table schema information if requested
       let schema = null;
       if (showSchema) {
-        const describeResult = await this.dbManager.query(`DESCRIBE \`${args.table}\``);
+        const describeResult = await this.dbManager.query(
+          `DESCRIBE \`${args.table}\``,
+        );
         schema = {
           columns: describeResult,
           totalColumns: describeResult.length,
@@ -944,11 +1122,15 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
       }
 
       // Build column list
-      let columns = '*';
-      if (args.columns && Array.isArray(args.columns) && args.columns.length > 0) {
+      let columns = "*";
+      if (
+        args.columns &&
+        Array.isArray(args.columns) &&
+        args.columns.length > 0
+      ) {
         // Validate column names
         args.columns.forEach((col: string) => this.validateColumnName(col));
-        columns = args.columns.map((col: string) => `\`${col}\``).join(', ');
+        columns = args.columns.map((col: string) => `\`${col}\``).join(", ");
       }
 
       // Build base query
@@ -957,7 +1139,8 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
 
       // Add WHERE clause if provided
       if (args.where) {
-        const { clause: whereClause, params: whereParams } = this.buildWhereClause(args.where);
+        const { clause: whereClause, params: whereParams } =
+          this.buildWhereClause(args.where);
         sql += ` ${whereClause}`;
         params.push(...whereParams);
       }
@@ -966,8 +1149,10 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
       let orderByColumn = args.orderBy;
       if (!orderByColumn && showSchema && schema) {
         // Try to find primary key or use first column
-        const primaryKey = schema.columns.find((col: any) => col.Key === 'PRI');
-        orderByColumn = primaryKey ? primaryKey.Field : schema.columns[0]?.Field;
+        const primaryKey = schema.columns.find((col: any) => col.Key === "PRI");
+        orderByColumn = primaryKey
+          ? primaryKey.Field
+          : schema.columns[0]?.Field;
       }
 
       // Add ORDER BY clause
@@ -990,7 +1175,8 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
       if (data.length > 0) {
         let countSql = `SELECT COUNT(*) as total FROM \`${args.table}\``;
         if (args.where) {
-          const { clause: whereClause, params: whereParams } = this.buildWhereClause(args.where);
+          const { clause: whereClause, params: whereParams } =
+            this.buildWhereClause(args.where);
           countSql += ` ${whereClause}`;
           const countResult = await this.dbManager.query(countSql, whereParams);
           totalRows = countResult[0]?.total || 0;
@@ -1002,75 +1188,87 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
 
       // Format output based on requested format
       let formattedData = data;
-      let displayInfo = '';
+      let displayInfo = "";
 
       switch (format) {
-        case 'json':
+        case "json":
           formattedData = data;
           break;
-        case 'csv':
+        case "csv":
           if (data.length > 0) {
             const headers = Object.keys(data[0]);
             const csvRows = [
-              headers.join(','),
-              ...data.map((row: any) => 
-                headers.map(header => {
-                  const value = row[header];
-                  // Escape CSV values that contain commas, quotes, or newlines
-                  if (value === null || value === undefined) return '';
-                  const stringValue = String(value);
-                  if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
-                    return `"${stringValue.replace(/"/g, '""')}"`;
-                  }
-                  return stringValue;
-                }).join(',')
-              )
+              headers.join(","),
+              ...data.map((row: any) =>
+                headers
+                  .map((header) => {
+                    const value = row[header];
+                    // Escape CSV values that contain commas, quotes, or newlines
+                    if (value === null || value === undefined) return "";
+                    const stringValue = String(value);
+                    if (
+                      stringValue.includes(",") ||
+                      stringValue.includes('"') ||
+                      stringValue.includes("\n")
+                    ) {
+                      return `"${stringValue.replace(/"/g, '""')}"`;
+                    }
+                    return stringValue;
+                  })
+                  .join(","),
+              ),
             ];
-            formattedData = csvRows.join('\n');
+            formattedData = csvRows.join("\n");
           } else {
-            formattedData = '';
+            formattedData = "";
           }
           break;
-        case 'table':
+        case "table":
         default:
           // Create a formatted table display
           if (data.length > 0) {
             const headers = Object.keys(data[0]);
-            const maxWidths = headers.map(header => {
+            const maxWidths = headers.map((header) => {
               const headerWidth = header.length;
-              const dataWidth = Math.max(...data.map((row: any) => {
-                const value = row[header];
-                return value === null || value === undefined ? 4 : String(value).length;
-              }));
+              const dataWidth = Math.max(
+                ...data.map((row: any) => {
+                  const value = row[header];
+                  return value === null || value === undefined
+                    ? 4
+                    : String(value).length;
+                }),
+              );
               return Math.max(headerWidth, dataWidth, 3);
             });
 
             // Create table header
-            const headerRow = headers.map((header, i) => header.padEnd(maxWidths[i])).join(' | ');
-            const separatorRow = maxWidths.map(width => '-'.repeat(width)).join('-+-');
-            
+            const headerRow = headers
+              .map((header, i) => header.padEnd(maxWidths[i]))
+              .join(" | ");
+            const separatorRow = maxWidths
+              .map((width) => "-".repeat(width))
+              .join("-+-");
+
             // Create data rows
-            const dataRows = data.map((row: any) => 
-              headers.map((header, i) => {
-                const value = row[header];
-                const displayValue = value === null ? 'NULL' : String(value);
-                return displayValue.padEnd(maxWidths[i]);
-              }).join(' | ')
+            const dataRows = data.map((row: any) =>
+              headers
+                .map((header, i) => {
+                  const value = row[header];
+                  const displayValue = value === null ? "NULL" : String(value);
+                  return displayValue.padEnd(maxWidths[i]);
+                })
+                .join(" | "),
             );
 
-            displayInfo = [
-              headerRow,
-              separatorRow,
-              ...dataRows
-            ].join('\n');
+            displayInfo = [headerRow, separatorRow, ...dataRows].join("\n");
           } else {
-            displayInfo = 'No data found.';
+            displayInfo = "No data found.";
           }
           break;
       }
 
       // Build pagination info
-      const hasMore = totalRows > (offset + limit);
+      const hasMore = totalRows > offset + limit;
       const currentPage = Math.floor(offset / limit) + 1;
       const totalPages = Math.ceil(totalRows / limit);
 
@@ -1087,8 +1285,8 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
           hasMore,
           showing: `${offset + 1}-${Math.min(offset + data.length, totalRows)} of ${totalRows}`,
         },
-        data: format === 'table' ? data : formattedData,
-        displayInfo: format === 'table' ? displayInfo : undefined,
+        data: format === "table" ? data : formattedData,
+        displayInfo: format === "table" ? displayInfo : undefined,
         count: data.length,
       };
 
@@ -1099,7 +1297,7 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
 
       return result;
     } catch (error) {
-      logger.error('Show table data operation failed:', error);
+      logger.error("Show table data operation failed:", error);
       throw error;
     }
   }
@@ -1107,59 +1305,66 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
   protected async handleUtility(args: any): Promise<any> {
     try {
       switch (args.action) {
-        case 'ping':
+        case "ping":
           const isConnected = await this.dbManager.testConnection();
           return {
             success: true,
-            action: 'ping',
+            action: "ping",
             connected: isConnected,
             timestamp: new Date().toISOString(),
           };
 
-        case 'version':
-          const versionResult = await this.dbManager.query('SELECT VERSION() as version');
+        case "version":
+          const versionResult = await this.dbManager.query(
+            "SELECT VERSION() as version",
+          );
           return {
             success: true,
-            action: 'version',
-            version: versionResult[0]?.version || 'Unknown',
+            action: "version",
+            version: versionResult[0]?.version || "Unknown",
           };
 
-        case 'stats':
+        case "stats":
           const databaseName = this.getDatabaseConfig().database;
           if (!databaseName) {
-            throw new Error('Database name is not configured');
+            throw new Error("Database name is not configured");
           }
 
-          const stats = await this.dbManager.query(`
-            SELECT 
+          const stats = await this.dbManager.query(
+            `
+            SELECT
               COUNT(*) as total_tables,
               SUM(TABLE_ROWS) as total_rows
-            FROM INFORMATION_SCHEMA.TABLES 
+            FROM INFORMATION_SCHEMA.TABLES
             WHERE TABLE_SCHEMA = ?
-          `, [databaseName]);
-          
+          `,
+            [databaseName],
+          );
+
           const poolStatus = this.dbManager.getPoolStatus();
-          
+
           return {
             success: true,
-            action: 'stats',
+            action: "stats",
             database: databaseName,
             tables: stats[0]?.total_tables || 0,
             rows: stats[0]?.total_rows || 0,
             pool: poolStatus,
           };
 
-        case 'describe_table':
+        case "describe_table":
           if (!args.table) {
-            throw new Error('Table name required for describe_table');
+            throw new Error("Table name required for describe_table");
           }
-          
+
           this.validateTableName(args.table);
-          
-          const describeResult = await this.dbManager.query(`DESCRIBE \`${args.table}\``);
+
+          const describeResult = await this.dbManager.query(
+            `DESCRIBE \`${args.table}\``,
+          );
           return {
             success: true,
-            action: 'describe_table',
+            action: "describe_table",
             table: args.table,
             structure: describeResult,
           };
@@ -1168,7 +1373,7 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
           throw new Error(`Unknown utility action: ${args.action}`);
       }
     } catch (error) {
-      logger.error('Utility operation failed:', error);
+      logger.error("Utility operation failed:", error);
       throw error;
     }
   }
@@ -1176,18 +1381,20 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
   protected async handleDescribeTable(args: any): Promise<any> {
     try {
       if (!args.table) {
-        throw new Error('Table name is required');
+        throw new Error("Table name is required");
       }
-      
+
       this.validateTableName(args.table);
-      
+
       // Get detailed table structure using DESCRIBE
-      const describeResult = await this.dbManager.query(`DESCRIBE \`${args.table}\``);
-      
+      const describeResult = await this.dbManager.query(
+        `DESCRIBE \`${args.table}\``,
+      );
+
       // Get additional table information from INFORMATION_SCHEMA
       const databaseName = this.getDatabaseConfig().database;
       const tableInfoQuery = `
-        SELECT 
+        SELECT
           TABLE_COMMENT as comment,
           ENGINE as engine,
           TABLE_ROWS as estimated_rows,
@@ -1195,27 +1402,33 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
           INDEX_LENGTH as index_length,
           CREATE_TIME as created_at,
           UPDATE_TIME as updated_at
-        FROM INFORMATION_SCHEMA.TABLES 
+        FROM INFORMATION_SCHEMA.TABLES
         WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
       `;
-      
-      const tableInfo = await this.dbManager.query(tableInfoQuery, [databaseName, args.table]);
-      
+
+      const tableInfo = await this.dbManager.query(tableInfoQuery, [
+        databaseName,
+        args.table,
+      ]);
+
       // Get indexes information
       const indexQuery = `
-        SELECT 
+        SELECT
           INDEX_NAME as name,
           COLUMN_NAME as column_name,
           NON_UNIQUE as non_unique,
           INDEX_TYPE as type,
           SEQ_IN_INDEX as sequence
-        FROM INFORMATION_SCHEMA.STATISTICS 
+        FROM INFORMATION_SCHEMA.STATISTICS
         WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
         ORDER BY INDEX_NAME, SEQ_IN_INDEX
       `;
-      
-      const indexes = await this.dbManager.query(indexQuery, [databaseName, args.table]);
-      
+
+      const indexes = await this.dbManager.query(indexQuery, [
+        databaseName,
+        args.table,
+      ]);
+
       // Group indexes by name
       const indexMap = new Map();
       indexes.forEach((idx: any) => {
@@ -1224,36 +1437,38 @@ export class MySQLMCPImplementation extends MySQLMCPServer {
             name: idx.name,
             type: idx.type,
             unique: idx.non_unique === 0,
-            columns: []
+            columns: [],
           });
         }
         indexMap.get(idx.name).columns.push(idx.column_name);
       });
-      
+
       return {
         success: true,
         table: args.table,
         columns: describeResult.map((col: any) => ({
           name: col.Field,
           type: col.Type,
-          nullable: col.Null === 'YES',
+          nullable: col.Null === "YES",
           key: col.Key,
           default: col.Default,
-          extra: col.Extra
+          extra: col.Extra,
         })),
-        table_info: tableInfo[0] ? {
-          comment: tableInfo[0].comment,
-          engine: tableInfo[0].engine,
-          estimated_rows: tableInfo[0].estimated_rows,
-          data_length: tableInfo[0].data_length,
-          index_length: tableInfo[0].index_length,
-          created_at: tableInfo[0].created_at,
-          updated_at: tableInfo[0].updated_at
-        } : null,
-        indexes: Array.from(indexMap.values())
+        table_info: tableInfo[0]
+          ? {
+              comment: tableInfo[0].comment,
+              engine: tableInfo[0].engine,
+              estimated_rows: tableInfo[0].estimated_rows,
+              data_length: tableInfo[0].data_length,
+              index_length: tableInfo[0].index_length,
+              created_at: tableInfo[0].created_at,
+              updated_at: tableInfo[0].updated_at,
+            }
+          : null,
+        indexes: Array.from(indexMap.values()),
       };
     } catch (error) {
-      logger.error('Describe table operation failed:', error);
+      logger.error("Describe table operation failed:", error);
       throw error;
     }
   }
